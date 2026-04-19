@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Spear Battle</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #e6fffa;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+}
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  background: #0a0a0a;
+}
+#ui {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.85);
+  z-index: 10;
+}
+#ui.hidden { display: none; }
+h1 {
+  font-size: 2rem;
+  color: #2dd4bf;
+  margin-bottom: 1rem;
+}
+.subtitle {
+  font-size: 0.9rem;
+  color: #8ba8a3;
+  margin-bottom: 2rem;
+}
+.btn {
+  display: block;
+  width: 220px;
+  padding: 14px;
+  margin: 8px auto;
+  border: 2px solid #2dd4bf;
+  background: transparent;
+  color: #2dd4bf;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:active, .btn:hover {
+  background: #2dd4bf;
+  color: #0a0a0a;
+}
+#controls {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  background: #111;
+  border-top: 1px solid #173832;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+#controls.hidden { display: none; }
+.ctrl-label {
+  font-size: 12px;
+  color: #8ba8a3;
+  text-align: center;
+}
+.ctrl-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #2dd4bf;
+  text-align: center;
+}
+input[type="range"] {
+  width: 100px;
+  accent-color: #2dd4bf;
+}
+.fire-btn {
+  padding: 12px 28px;
+  background: #2dd4bf;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.fire-btn:active { background: #5eead4; }
+.fire-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#turnInfo {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  font-weight: bold;
+  color: #2dd4bf;
+  background: rgba(0,0,0,0.7);
+  padding: 6px 16px;
+  border-radius: 20px;
+  z-index: 5;
+}
+#turnInfo.hidden { display: none; }
+#result {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.9);
+  z-index: 20;
+}
+#result.hidden { display: none; }
+#result h2 { font-size: 2.5rem; color: #2dd4bf; }
+#result p { font-size: 1.2rem; color: #8ba8a3; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<div id="turnInfo" class="hidden"></div>
+<canvas id="game"></canvas>
+
+<div id="controls" class="hidden">
+  <div>
+    <div class="ctrl-label">角度</div>
+    <div class="ctrl-value" id="angleVal">45°</div>
+    <input type="range" id="angleSlider" min="5" max="85" value="45">
+  </div>
+  <div>
+    <div class="ctrl-label">パワー</div>
+    <div class="ctrl-value" id="powerVal">50</div>
+    <input type="range" id="powerSlider" min="10" max="100" value="50">
+  </div>
+  <button class="fire-btn" id="fireBtn">投げる!</button>
+</div>
+
+<div id="ui">
+  <h1>🔱 Spear Battle</h1>
+  <p class="subtitle">棒人間 槍投げ対戦</p>
+  <button class="btn" id="startBtn">ローカル対戦</button>
+</div>
+
+<div id="result" class="hidden">
+  <h2 id="winnerText"></h2>
+  <p id="winnerSub"></p>
+  <button class="btn" style="margin-top:2rem" id="retryBtn">もう一度</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Responsive canvas
+function resize() {
+  const w = Math.min(window.innerWidth, 800);
+  const h = Math.min(window.innerHeight * 0.75, 500);
+  canvas.width = w * 2;
+  canvas.height = h * 2;
+  canvas.style.height = h + 'px';
+  ctx.scale(2, 2);
+  W = w;
+  H = h;
+}
+let W, H;
+resize();
+window.addEventListener('resize', resize);
+
+// Game state
+const GRAVITY = 0.3;
+const GROUND_Y_RATIO = 0.78;
+let players, currentPlayer, spear, gameRunning, animating;
+
+function groundY() { return H * GROUND_Y_RATIO; }
+
+function initGame() {
+  const gy = groundY();
+  players = [
+    { x: W * 0.15, y: gy, hp: 100, maxHp: 100, color: '#2dd4bf', name: 'P1', dir: 1 },
+    { x: W * 0.85, y: gy, hp: 100, maxHp: 100, color: '#f472b6', name: 'P2', dir: -1 },
+  ];
+  currentPlayer = 0;
+  spear = null;
+  gameRunning = true;
+  animating = false;
+}
+
+// Draw stick figure
+function drawStickman(p) {
+  const x = p.x, y = p.y;
+  const s = Math.min(W, H) * 0.04;
+  ctx.strokeStyle = p.color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+
+  // Head
+  ctx.beginPath();
+  ctx.arc(x, y - s * 3.5, s * 0.7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(x, y - s * 2.8);
+  ctx.lineTo(x, y - s * 0.8);
+  ctx.stroke();
+
+  // Arms (one holding spear)
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.8, y - s * 2.2);
+  ctx.lineTo(x, y - s * 2);
+  ctx.lineTo(x + s * 0.8, y - s * 2.2);
+  ctx.stroke();
+
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(x, y - s * 0.8);
+  ctx.lineTo(x - s * 0.6, y);
+  ctx.moveTo(x, y - s * 0.8);
+  ctx.lineTo(x + s * 0.6, y);
+  ctx.stroke();
+
+  // HP bar
+  const barW = s * 3;
+  const barH = 4;
+  const barX = x - barW / 2;
+  const barY = y - s * 5;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = p.hp > 30 ? p.color : '#f44';
+  ctx.fillRect(barX, barY, barW * (p.hp / p.maxHp), barH);
+
+  // Name
+  ctx.fillStyle = p.color;
+  ctx.font = `bold ${Math.max(10, s * 0.6)}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.fillText(p.name, x, barY - 4);
+}
+
+// Draw spear in flight
+function drawSpear(s) {
+  if (!s) return;
+  const angle = Math.atan2(s.vy, s.vx);
+  const len = 18;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate(angle);
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-len, 0);
+  ctx.lineTo(len, 0);
+  ctx.stroke();
+  // Spear tip
+  ctx.beginPath();
+  ctx.moveTo(len, 0);
+  ctx.lineTo(len - 5, -4);
+  ctx.moveTo(len, 0);
+  ctx.lineTo(len - 5, 4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Draw ground
+function drawGround() {
+  const gy = groundY();
+  ctx.fillStyle = '#1a2e2a';
+  ctx.fillRect(0, gy, W, H - gy);
+  ctx.strokeStyle = '#2dd4bf33';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  ctx.lineTo(W, gy);
+  ctx.stroke();
+}
+
+// Draw trajectory preview
+function drawPreview() {
+  if (animating || !gameRunning) return;
+  const p = players[currentPlayer];
+  const angle = parseInt(angleSlider.value);
+  const power = parseInt(powerSlider.value);
+  const rad = (angle * Math.PI) / 180;
+  const dir = p.dir;
+  const vx = Math.cos(rad) * power * 0.15 * dir;
+  const vy = -Math.sin(rad) * power * 0.15;
+  const startX = p.x + dir * 15;
+  const startY = p.y - H * 0.04 * 2.2;
+
+  ctx.setLineDash([4, 6]);
+  ctx.strokeStyle = 'rgba(45,212,191,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  let px = startX, py = startY, pvx = vx, pvy = vy;
+  ctx.moveTo(px, py);
+  for (let i = 0; i < 60; i++) {
+    pvx *= 0.998;
+    pvy += GRAVITY;
+    px += pvx;
+    py += pvy;
+    if (py > groundY()) break;
+    ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// Main draw
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawGround();
+  players.forEach(drawStickman);
+  drawSpear(spear);
+  if (!animating) drawPreview();
+}
+
+// Fire spear
+function fireSpear() {
+  if (animating || !gameRunning) return;
+  animating = true;
+  fireBtn.disabled = true;
+
+  const p = players[currentPlayer];
+  const angle = parseInt(angleSlider.value);
+  const power = parseInt(powerSlider.value);
+  const rad = (angle * Math.PI) / 180;
+  const dir = p.dir;
+
+  spear = {
+    x: p.x + dir * 15,
+    y: p.y - H * 0.04 * 2.2,
+    vx: Math.cos(rad) * power * 0.15 * dir,
+    vy: -Math.sin(rad) * power * 0.15,
+  };
+
+  function animate() {
+    spear.vx *= 0.998;
+    spear.vy += GRAVITY;
+    spear.x += spear.vx;
+    spear.y += spear.vy;
+
+    // Hit check against opponent
+    const opp = players[1 - currentPlayer];
+    const dx = spear.x - opp.x;
+    const dy = spear.y - (opp.y - H * 0.04 * 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const hitRadius = H * 0.04 * 2.5;
+
+    if (dist < hitRadius) {
+      // Hit!
+      const dmg = Math.floor(15 + power * 0.2 + Math.random() * 10);
+      opp.hp = Math.max(0, opp.hp - dmg);
+      spear = null;
+      showDamage(opp.x, opp.y - H * 0.04 * 4, dmg);
+
+      if (opp.hp <= 0) {
+        gameRunning = false;
+        setTimeout(() => showResult(players[currentPlayer]), 800);
+      } else {
+        setTimeout(nextTurn, 1000);
+      }
+      draw();
+      return;
+    }
+
+    // Ground or out of bounds
+    if (spear.y > groundY() || spear.x < -50 || spear.x > W + 50) {
+      spear = null;
+      showDamage(W / 2, groundY() - 30, 'MISS');
+      setTimeout(nextTurn, 800);
+      draw();
+      return;
+    }
+
+    draw();
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// Damage popup
+let damagePopups = [];
+function showDamage(x, y, val) {
+  const el = document.createElement('div');
+  el.textContent = typeof val === 'number' ? `-${val}` : val;
+  el.style.cssText = `
+    position:fixed; left:${(x/W)*100}%; top:${(y/H)*75}%;
+    color:${typeof val === 'number' ? '#f44' : '#ffd700'}; font-size:1.5rem; font-weight:bold;
+    pointer-events:none; z-index:15; text-shadow:0 0 8px rgba(0,0,0,0.8);
+    animation: floatUp 1s ease-out forwards;
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// Next turn
+function nextTurn() {
+  currentPlayer = 1 - currentPlayer;
+  animating = false;
+  fireBtn.disabled = false;
+  updateTurnInfo();
+  draw();
+}
+
+function updateTurnInfo() {
+  const p = players[currentPlayer];
+  turnInfo.textContent = `${p.name} のターン`;
+  turnInfo.style.color = p.color;
+}
+
+// Result
+function showResult(winner) {
+  document.getElementById('controls').classList.add('hidden');
+  turnInfo.classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  document.getElementById('winnerText').textContent = `🏆 ${winner.name} の勝ち!`;
+  document.getElementById('winnerText').style.color = winner.color;
+  document.getElementById('winnerSub').textContent = '槍投げバトル 決着!';
+}
+
+// Start
+function startGame() {
+  document.getElementById('ui').classList.add('hidden');
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('controls').classList.remove('hidden');
+  turnInfo.classList.remove('hidden');
+  initGame();
+  updateTurnInfo();
+  draw();
+}
+
+// Event listeners
+const angleSlider = document.getElementById('angleSlider');
+const powerSlider = document.getElementById('powerSlider');
+const fireBtn = document.getElementById('fireBtn');
+const turnInfo = document.getElementById('turnInfo');
+
+angleSlider.addEventListener('input', () => {
+  document.getElementById('angleVal').textContent = angleSlider.value + '°';
+  draw();
+});
+powerSlider.addEventListener('input', () => {
+  document.getElementById('powerVal').textContent = powerSlider.value;
+  draw();
+});
+fireBtn.addEventListener('click', fireSpear);
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+// Float up animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes floatUp {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-40px); opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
+// Initial draw
+initGame();
+draw();
+</script>
+</body>
+</html>
