@@ -143,6 +143,26 @@ let players, currentPlayer, spear, gameRunning, animating, terrain;
 let wind = 0;
 let onlineMode = false, cpuMode = false, myPlayer = -1, roomRef = null, roomCode = null;
 let cpuPlayers = new Set();
+let kills = {};
+
+// Sound effects
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+function playTone(freq, dur, type, vol) {
+  ensureAudio();
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'square'; o.frequency.value = freq;
+  g.gain.value = vol || 0.15;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function sfxThrow() { playTone(200, 0.15, 'sawtooth', 0.12); setTimeout(() => playTone(350, 0.1, 'sawtooth', 0.08), 50); }
+function sfxHit() { playTone(100, 0.3, 'square', 0.2); setTimeout(() => playTone(80, 0.2, 'square', 0.15), 100); }
+function sfxKill() { playTone(60, 0.5, 'sawtooth', 0.25); setTimeout(() => playTone(40, 0.4, 'square', 0.2), 150); }
+function sfxMiss() { playTone(300, 0.15, 'sine', 0.08); }
+function sfxWin() { [0,100,200,300].forEach((d,i) => setTimeout(() => playTone(400+i*100, 0.2, 'square', 0.12), d)); }
 
 function groundY() { return H * GROUND_Y_RATIO; }
 
@@ -174,6 +194,7 @@ function initGame(numPlayers, terrainData) {
     color: PLAYER_COLORS[i], name: PLAYER_NAMES[i], dir: xr < 0.5 ? 1 : -1, alive: true
   }));
   currentPlayer = 0; spear = null; gameRunning = true; animating = false;
+  kills = {}; players.forEach((_, i) => kills[i] = 0);
   randomWind();
 }
 
@@ -268,6 +289,7 @@ function draw() {
 // Spear
 function executeThrow(angle, power, cb) {
   animating=true; fireBtn.disabled=true; stopPowerGauge();
+  sfxThrow();
   const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
   spear={x:p.x+dir*12, y:p.y-H*0.035*2.2, vx:Math.cos(rad)*power*0.14*dir, vy:-Math.sin(rad)*power*0.14};
 
@@ -286,15 +308,16 @@ function executeThrow(angle, power, cb) {
       const opp=players[hitPlayer];
       const dmg=Math.floor(15+power*0.2+Math.random()*10);
       opp.hp=Math.max(0,opp.hp-dmg); spear=null;
+      sfxHit();
       showDamage(opp.x,opp.y-H*0.035*4,dmg);
-      if (opp.hp<=0) { opp.alive=false; showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
+      if (opp.hp<=0) { opp.alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
       const alive=alivePlayers();
       if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
       else setTimeout(()=>{if(cb)cb();},1000);
       draw(); return;
     }
     if (terrainHit(spear.x,spear.y)||spear.x<-50||spear.x>W+50) {
-      spear=null; showDamage(W/2,groundY()-30,'MISS');
+      spear=null; sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
       setTimeout(()=>{if(cb)cb();},800); draw(); return;
     }
     draw(); requestAnimationFrame(animate);
@@ -364,7 +387,24 @@ function showResult(winner) {
     document.getElementById('winnerText').textContent=winner?`🏆 ${winner.name} の勝ち!`:'引き分け!';
     document.getElementById('winnerText').style.color=winner?winner.color:'#8ba8a3';
   }
-  document.getElementById('winnerSub').textContent='槍投げバトル 決着!';
+  // Kill scores
+  const scoreLines = players.map((p, i) => `${p.name}: ${kills[i]||0}キル`).join(' / ');
+  document.getElementById('winnerSub').textContent = scoreLines;
+
+  // Share button
+  let shareBtn = document.getElementById('shareBtn');
+  if (!shareBtn) {
+    shareBtn = document.createElement('button');
+    shareBtn.id = 'shareBtn';
+    shareBtn.className = 'btn btn-secondary';
+    shareBtn.style.marginTop = '1rem';
+    shareBtn.textContent = '🔗 シェアして一緒に遊ぶ';
+    document.getElementById('retryBtn').after(shareBtn);
+    shareBtn.addEventListener('click', shareGame);
+  }
+  shareBtn.style.display = 'block';
+
+  sfxWin();
 }
 
 // Power gauge
@@ -504,6 +544,18 @@ function onlineFire() {
 function cancelRoom() {
   if(roomRef){roomRef.remove();roomRef=null;} roomCode=null;
   hideAllOverlays(); document.getElementById('ui').classList.remove('hidden');
+}
+
+function shareGame() {
+  const url = 'https://mochibullet.github.io/spear-battle/';
+  const text = '🔱 Spear Battle - 棒人間の槍投げ対戦ゲーム！オンラインで一緒に遊ぼう！';
+  if (navigator.share) {
+    navigator.share({ title: 'Spear Battle', text, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(`${text}\n${url}`).then(() => {
+      alert('リンクをコピーしました！');
+    });
+  }
 }
 
 function hideAllOverlays() {
