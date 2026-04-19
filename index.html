@@ -144,10 +144,12 @@ input[type="range"] {
     <div class="ctrl-value" id="angleVal">45°</div>
     <input type="range" id="angleSlider" min="5" max="85" value="45">
   </div>
-  <div>
+  <div style="flex:1;max-width:160px">
     <div class="ctrl-label">パワー</div>
-    <div class="ctrl-value" id="powerVal">50</div>
-    <input type="range" id="powerSlider" min="10" max="100" value="50">
+    <div style="position:relative;height:20px;background:#1a2e2a;border-radius:10px;overflow:hidden;margin-top:4px">
+      <div id="powerBar" style="position:absolute;left:0;top:0;height:100%;width:50%;background:#2dd4bf;border-radius:10px;transition:none"></div>
+    </div>
+    <div class="ctrl-value" id="powerVal" style="margin-top:2px">50</div>
   </div>
   <button class="fire-btn" id="fireBtn">投げる!</button>
 </div>
@@ -295,7 +297,7 @@ function drawPreview() {
   if (animating || !gameRunning) return;
   const p = players[currentPlayer];
   const angle = parseInt(angleSlider.value);
-  const power = parseInt(powerSlider.value);
+  const power = powerValue;
   const rad = (angle * Math.PI) / 180;
   const dir = p.dir;
   const vx = Math.cos(rad) * power * 0.15 * dir;
@@ -338,7 +340,7 @@ function fireSpear() {
 
   const p = players[currentPlayer];
   const angle = parseInt(angleSlider.value);
-  const power = parseInt(powerSlider.value);
+  const power = powerValue;
   const rad = (angle * Math.PI) / 180;
   const dir = p.dir;
 
@@ -415,6 +417,7 @@ function nextTurn() {
   animating = false;
   fireBtn.disabled = false;
   updateTurnInfo();
+  startPowerGauge();
   draw();
 }
 
@@ -426,6 +429,7 @@ function updateTurnInfo() {
 
 // Result
 function showResult(winner) {
+  stopPowerGauge();
   document.getElementById('controls').classList.add('hidden');
   turnInfo.classList.add('hidden');
   document.getElementById('result').classList.remove('hidden');
@@ -442,24 +446,48 @@ function startGame() {
   turnInfo.classList.remove('hidden');
   initGame();
   updateTurnInfo();
+  startPowerGauge();
   draw();
 }
 
 // Event listeners
 const angleSlider = document.getElementById('angleSlider');
-const powerSlider = document.getElementById('powerSlider');
 const fireBtn = document.getElementById('fireBtn');
 const turnInfo = document.getElementById('turnInfo');
+const powerBar = document.getElementById('powerBar');
+const powerValEl = document.getElementById('powerVal');
+
+// Auto power gauge
+let powerValue = 10;
+let powerDir = 1;
+let powerTimer = null;
+
+function startPowerGauge() {
+  powerValue = 10;
+  powerDir = 1;
+  if (powerTimer) clearInterval(powerTimer);
+  powerTimer = setInterval(() => {
+    powerValue += powerDir * 2;
+    if (powerValue >= 100) { powerValue = 100; powerDir = -1; }
+    if (powerValue <= 10) { powerValue = 10; powerDir = 1; }
+    powerBar.style.width = powerValue + '%';
+    powerValEl.textContent = powerValue;
+    draw();
+  }, 30);
+}
+
+function stopPowerGauge() {
+  if (powerTimer) { clearInterval(powerTimer); powerTimer = null; }
+}
 
 angleSlider.addEventListener('input', () => {
   document.getElementById('angleVal').textContent = angleSlider.value + '°';
   draw();
 });
-powerSlider.addEventListener('input', () => {
-  document.getElementById('powerVal').textContent = powerSlider.value;
-  draw();
+fireBtn.addEventListener('click', () => {
+  stopPowerGauge();
+  fireSpear();
 });
-fireBtn.addEventListener('click', fireSpear);
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('retryBtn').addEventListener('click', startGame);
 
