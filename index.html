@@ -292,35 +292,35 @@ function drawGround() {
   ctx.stroke();
 }
 
-// Draw trajectory preview
+// Draw direction arrow
 function drawPreview() {
   if (animating || !gameRunning) return;
   const p = players[currentPlayer];
   const angle = parseInt(angleSlider.value);
-  const power = powerValue;
   const rad = (angle * Math.PI) / 180;
   const dir = p.dir;
-  const vx = Math.cos(rad) * power * 0.15 * dir;
-  const vy = -Math.sin(rad) * power * 0.15;
   const startX = p.x + dir * 15;
   const startY = p.y - H * 0.04 * 2.2;
+  const arrowLen = 40;
+  const endX = startX + Math.cos(rad) * arrowLen * dir;
+  const endY = startY - Math.sin(rad) * arrowLen;
 
-  ctx.setLineDash([4, 6]);
-  ctx.strokeStyle = 'rgba(45,212,191,0.3)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(45,212,191,0.6)';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  let px = startX, py = startY, pvx = vx, pvy = vy;
-  ctx.moveTo(px, py);
-  for (let i = 0; i < 60; i++) {
-    pvx *= 0.998;
-    pvy += GRAVITY;
-    px += pvx;
-    py += pvy;
-    if (py > groundY()) break;
-    ctx.lineTo(px, py);
-  }
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
   ctx.stroke();
-  ctx.setLineDash([]);
+
+  // Arrowhead
+  const headLen = 8;
+  const headAngle = Math.atan2(startY - endY, startX - endX);
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX + Math.cos(headAngle + 0.4) * headLen, endY + Math.sin(headAngle + 0.4) * headLen);
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX + Math.cos(headAngle - 0.4) * headLen, endY + Math.sin(headAngle - 0.4) * headLen);
+  ctx.stroke();
 }
 
 // Main draw
