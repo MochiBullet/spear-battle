@@ -188,20 +188,70 @@ window.addEventListener('resize', resize);
 // Game state
 const GRAVITY = 0.3;
 const GROUND_Y_RATIO = 0.78;
-let players, currentPlayer, spear, gameRunning, animating;
+let players, currentPlayer, spear, gameRunning, animating, terrain;
 
 function groundY() { return H * GROUND_Y_RATIO; }
 
+// 10 terrain types
+const TERRAINS = [
+  { name: 'フラット', gen: () => [] },
+  { name: '丘', gen: () => [{ x: 0.5, w: 0.3, h: 0.12 }] },
+  { name: '谷', gen: () => [{ x: 0.3, w: 0.15, h: 0.1 }, { x: 0.7, w: 0.15, h: 0.1 }] },
+  { name: '壁', gen: () => [{ x: 0.5, w: 0.04, h: 0.25 }] },
+  { name: '階段', gen: () => [{ x: 0.3, w: 0.12, h: 0.06 }, { x: 0.5, w: 0.12, h: 0.12 }, { x: 0.7, w: 0.12, h: 0.18 }] },
+  { name: '双丘', gen: () => [{ x: 0.35, w: 0.15, h: 0.1 }, { x: 0.65, w: 0.15, h: 0.1 }] },
+  { name: '要塞', gen: () => [{ x: 0.5, w: 0.2, h: 0.18 }, { x: 0.5, w: 0.06, h: 0.3 }] },
+  { name: 'でこぼこ', gen: () => [{ x: 0.25, w: 0.08, h: 0.06 }, { x: 0.45, w: 0.06, h: 0.1 }, { x: 0.6, w: 0.1, h: 0.04 }, { x: 0.8, w: 0.05, h: 0.08 }] },
+  { name: '高台', gen: () => [{ x: 0.15, w: 0.12, h: 0.15 }, { x: 0.85, w: 0.12, h: 0.08 }] },
+  { name: 'カオス', gen: () => {
+    const n = 3 + Math.floor(Math.random() * 4);
+    const blocks = [];
+    for (let i = 0; i < n; i++) {
+      blocks.push({ x: 0.2 + Math.random() * 0.6, w: 0.04 + Math.random() * 0.12, h: 0.04 + Math.random() * 0.2 });
+    }
+    return blocks;
+  }},
+];
+
 function initGame() {
   const gy = groundY();
+  const t = TERRAINS[Math.floor(Math.random() * TERRAINS.length)];
+  terrain = { name: t.name, blocks: t.gen() };
+
+  const p1y = getPlayerGround(0.15);
+  const p2y = getPlayerGround(0.85);
   players = [
-    { x: W * 0.15, y: gy, hp: 100, maxHp: 100, color: '#2dd4bf', name: 'P1', dir: 1 },
-    { x: W * 0.85, y: gy, hp: 100, maxHp: 100, color: '#f472b6', name: 'P2', dir: -1 },
+    { x: W * 0.15, y: p1y, hp: 100, maxHp: 100, color: '#2dd4bf', name: 'P1', dir: 1 },
+    { x: W * 0.85, y: p2y, hp: 100, maxHp: 100, color: '#f472b6', name: 'P2', dir: -1 },
   ];
   currentPlayer = 0;
   spear = null;
   gameRunning = true;
   animating = false;
+}
+
+function getPlayerGround(xRatio) {
+  const gy = groundY();
+  const px = W * xRatio;
+  for (const b of (terrain ? terrain.blocks : [])) {
+    const bx = W * b.x, bw = W * b.w, bh = H * b.h;
+    if (px > bx - bw / 2 && px < bx + bw / 2) {
+      return gy - bh;
+    }
+  }
+  return gy;
+}
+
+function terrainHit(sx, sy) {
+  const gy = groundY();
+  if (sy >= gy) return true;
+  for (const b of terrain.blocks) {
+    const bx = W * b.x, bw = W * b.w, bh = H * b.h;
+    if (sx > bx - bw / 2 && sx < bx + bw / 2 && sy > gy - bh) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Draw stick figure
@@ -279,17 +329,34 @@ function drawSpear(s) {
   ctx.restore();
 }
 
-// Draw ground
+// Draw ground + terrain
 function drawGround() {
   const gy = groundY();
   ctx.fillStyle = '#1a2e2a';
   ctx.fillRect(0, gy, W, H - gy);
+
+  // Terrain blocks
+  for (const b of terrain.blocks) {
+    const bx = W * b.x, bw = W * b.w, bh = H * b.h;
+    ctx.fillStyle = '#243f3a';
+    ctx.fillRect(bx - bw / 2, gy - bh, bw, bh);
+    ctx.strokeStyle = '#2dd4bf22';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - bw / 2, gy - bh, bw, bh);
+  }
+
   ctx.strokeStyle = '#2dd4bf33';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, gy);
   ctx.lineTo(W, gy);
   ctx.stroke();
+
+  // Terrain name
+  ctx.fillStyle = '#2dd4bf44';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText(terrain.name, W - 8, gy + 14);
 }
 
 // Draw direction arrow
@@ -381,8 +448,8 @@ function fireSpear() {
       return;
     }
 
-    // Ground or out of bounds
-    if (spear.y > groundY() || spear.x < -50 || spear.x > W + 50) {
+    // Ground, terrain or out of bounds
+    if (terrainHit(spear.x, spear.y) || spear.x < -50 || spear.x > W + 50) {
       spear = null;
       showDamage(W / 2, groundY() - 30, 'MISS');
       setTimeout(nextTurn, 800);
