@@ -17,120 +17,60 @@ body {
   overflow: hidden;
   touch-action: none;
 }
-canvas {
-  display: block;
-  width: 100%;
-  max-width: 800px;
-  background: #0a0a0a;
+canvas { display: block; width: 100%; max-width: 800px; background: #0a0a0a; }
+.overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.85); z-index: 10;
 }
-#ui {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.85);
-  z-index: 10;
-}
-#ui.hidden { display: none; }
-h1 {
-  font-size: 2rem;
-  color: #2dd4bf;
-  margin-bottom: 1rem;
-}
-.subtitle {
-  font-size: 0.9rem;
-  color: #8ba8a3;
-  margin-bottom: 2rem;
-}
+.overlay.hidden { display: none; }
+h1 { font-size: 2rem; color: #2dd4bf; margin-bottom: 1rem; }
+.subtitle { font-size: 0.9rem; color: #8ba8a3; margin-bottom: 2rem; }
 .btn {
-  display: block;
-  width: 220px;
-  padding: 14px;
-  margin: 8px auto;
-  border: 2px solid #2dd4bf;
-  background: transparent;
-  color: #2dd4bf;
-  font-size: 1rem;
-  font-weight: bold;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
+  display: block; width: 220px; padding: 14px; margin: 8px auto;
+  border: 2px solid #2dd4bf; background: transparent; color: #2dd4bf;
+  font-size: 1rem; font-weight: bold; border-radius: 12px; cursor: pointer; transition: all 0.2s;
 }
-.btn:active, .btn:hover {
-  background: #2dd4bf;
-  color: #0a0a0a;
-}
+.btn:active, .btn:hover { background: #2dd4bf; color: #0a0a0a; }
+.btn-secondary { border-color: #f472b6; color: #f472b6; }
+.btn-secondary:active, .btn-secondary:hover { background: #f472b6; color: #0a0a0a; }
 #controls {
-  position: fixed;
-  bottom: 0;
-  left: 0; right: 0;
-  background: #111;
-  border-top: 1px solid #173832;
-  padding: 12px 16px;
+  position: fixed; bottom: 0; left: 0; right: 0; background: #111;
+  border-top: 1px solid #173832; padding: 12px 16px;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
+  display: flex; gap: 12px; align-items: center; justify-content: center; z-index: 5;
 }
 #controls.hidden { display: none; }
-.ctrl-label {
-  font-size: 12px;
-  color: #8ba8a3;
-  text-align: center;
-}
-.ctrl-value {
-  font-size: 18px;
-  font-weight: bold;
-  color: #2dd4bf;
-  text-align: center;
-}
-input[type="range"] {
-  width: 100px;
-  accent-color: #2dd4bf;
-}
+.ctrl-label { font-size: 12px; color: #8ba8a3; text-align: center; }
+.ctrl-value { font-size: 18px; font-weight: bold; color: #2dd4bf; text-align: center; }
+input[type="range"] { width: 100px; accent-color: #2dd4bf; }
 .fire-btn {
-  padding: 12px 28px;
-  background: #2dd4bf;
-  color: #0a0a0a;
-  border: none;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
+  padding: 12px 28px; background: #2dd4bf; color: #0a0a0a; border: none;
+  border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer;
 }
 .fire-btn:active { background: #5eead4; }
 .fire-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 #turnInfo {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 14px;
-  font-weight: bold;
-  color: #2dd4bf;
-  background: rgba(0,0,0,0.7);
-  padding: 6px 16px;
-  border-radius: 20px;
-  z-index: 5;
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 14px; font-weight: bold; color: #2dd4bf;
+  background: rgba(0,0,0,0.7); padding: 6px 16px; border-radius: 20px; z-index: 5;
 }
 #turnInfo.hidden { display: none; }
-#result {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.9);
-  z-index: 20;
-}
-#result.hidden { display: none; }
 #result h2 { font-size: 2.5rem; color: #2dd4bf; }
 #result p { font-size: 1.2rem; color: #8ba8a3; margin-top: 0.5rem; }
+.room-code {
+  font-size: 2.5rem; font-weight: bold; color: #ffd700; letter-spacing: 8px;
+  background: #1a2e2a; padding: 12px 28px; border-radius: 12px; margin: 1rem 0;
+}
+.room-input {
+  font-size: 1.5rem; text-align: center; letter-spacing: 6px; width: 200px;
+  padding: 12px; background: #1a2e2a; border: 2px solid #173832; border-radius: 12px;
+  color: #e6fffa; margin: 1rem 0; text-transform: uppercase;
+}
+.room-input:focus { border-color: #2dd4bf; outline: none; }
+.wait-text { color: #8ba8a3; font-size: 0.9rem; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes floatUp { 0% { transform:translateY(0);opacity:1; } 100% { transform:translateY(-40px);opacity:0; } }
 </style>
 </head>
 <body>
@@ -154,45 +94,80 @@ input[type="range"] {
   <button class="fire-btn" id="fireBtn">投げる!</button>
 </div>
 
-<div id="ui">
+<!-- Menu -->
+<div id="ui" class="overlay">
   <h1>🔱 Spear Battle</h1>
   <p class="subtitle">棒人間 槍投げ対戦</p>
   <button class="btn" id="startBtn">ローカル対戦</button>
+  <button class="btn btn-secondary" id="createRoomBtn">部屋を作る</button>
+  <button class="btn btn-secondary" id="joinRoomBtn">部屋に入る</button>
 </div>
 
-<div id="result" class="hidden">
+<!-- Waiting room -->
+<div id="waitRoom" class="overlay hidden">
+  <h1>🔱 部屋を作成</h1>
+  <p class="subtitle">この合言葉を相手に伝えてください</p>
+  <div class="room-code" id="roomCodeDisplay">----</div>
+  <p class="wait-text" id="waitText">相手を待っています...</p>
+  <button class="btn" id="cancelRoomBtn" style="margin-top:1rem">キャンセル</button>
+</div>
+
+<!-- Join room -->
+<div id="joinRoom" class="overlay hidden">
+  <h1>🔱 部屋に入る</h1>
+  <p class="subtitle">合言葉を入力</p>
+  <input type="text" class="room-input" id="roomCodeInput" maxlength="4" placeholder="ABCD">
+  <button class="btn btn-secondary" id="joinConfirmBtn">参加する</button>
+  <p id="joinError" style="color:#f44;font-size:0.85rem;margin-top:0.5rem"></p>
+  <button class="btn" id="cancelJoinBtn" style="margin-top:0.5rem">戻る</button>
+</div>
+
+<!-- Result -->
+<div id="result" class="overlay hidden">
   <h2 id="winnerText"></h2>
   <p id="winnerSub"></p>
   <button class="btn" style="margin-top:2rem" id="retryBtn">もう一度</button>
 </div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
 <script>
+// === Firebase ===
+firebase.initializeApp({
+  apiKey: "AIzaSyA8l-oe2BqZihiVVtizEl1fMGqhy8W-JzA",
+  authDomain: "spear-battle.firebaseapp.com",
+  databaseURL: "https://spear-battle-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "spear-battle",
+  storageBucket: "spear-battle.firebasestorage.app",
+  messagingSenderId: "696563248470",
+  appId: "1:696563248470:web:158790c082a6cf408dbaf7"
+});
+const db = firebase.database();
+
+// === Canvas ===
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-
-// Responsive canvas
+let W, H;
 function resize() {
   const w = Math.min(window.innerWidth, 800);
   const h = Math.min(window.innerHeight * 0.75, 500);
-  canvas.width = w * 2;
-  canvas.height = h * 2;
+  canvas.width = w * 2; canvas.height = h * 2;
   canvas.style.height = h + 'px';
-  ctx.scale(2, 2);
-  W = w;
-  H = h;
+  ctx.scale(2, 2); W = w; H = h;
 }
-let W, H;
 resize();
 window.addEventListener('resize', resize);
 
-// Game state
+// === Game State ===
 const GRAVITY = 0.3;
 const GROUND_Y_RATIO = 0.78;
 let players, currentPlayer, spear, gameRunning, animating, terrain;
+let onlineMode = false, myPlayer = -1, roomRef = null, roomCode = null;
 
 function groundY() { return H * GROUND_Y_RATIO; }
 
-// 10 terrain types
 const TERRAINS = [
   { name: 'フラット', gen: () => [] },
   { name: '丘', gen: () => [{ x: 0.5, w: 0.3, h: 0.12 }] },
@@ -205,372 +180,354 @@ const TERRAINS = [
   { name: '高台', gen: () => [{ x: 0.15, w: 0.12, h: 0.15 }, { x: 0.85, w: 0.12, h: 0.08 }] },
   { name: 'カオス', gen: () => {
     const n = 3 + Math.floor(Math.random() * 4);
-    const blocks = [];
-    for (let i = 0; i < n; i++) {
-      blocks.push({ x: 0.2 + Math.random() * 0.6, w: 0.04 + Math.random() * 0.12, h: 0.04 + Math.random() * 0.2 });
-    }
-    return blocks;
+    return Array.from({length: n}, () => ({
+      x: 0.2 + Math.random() * 0.6, w: 0.04 + Math.random() * 0.12, h: 0.04 + Math.random() * 0.2
+    }));
   }},
 ];
 
-function initGame() {
-  const gy = groundY();
-  const t = TERRAINS[Math.floor(Math.random() * TERRAINS.length)];
-  terrain = { name: t.name, blocks: t.gen() };
-
+function initGame(terrainData) {
+  if (terrainData) {
+    terrain = terrainData;
+  } else {
+    const t = TERRAINS[Math.floor(Math.random() * TERRAINS.length)];
+    terrain = { name: t.name, blocks: t.gen() };
+  }
   const p1y = getPlayerGround(0.15);
   const p2y = getPlayerGround(0.85);
   players = [
     { x: W * 0.15, y: p1y, hp: 100, maxHp: 100, color: '#2dd4bf', name: 'P1', dir: 1 },
     { x: W * 0.85, y: p2y, hp: 100, maxHp: 100, color: '#f472b6', name: 'P2', dir: -1 },
   ];
-  currentPlayer = 0;
-  spear = null;
-  gameRunning = true;
-  animating = false;
+  currentPlayer = 0; spear = null; gameRunning = true; animating = false;
 }
 
 function getPlayerGround(xRatio) {
-  const gy = groundY();
-  const px = W * xRatio;
+  const gy = groundY(), px = W * xRatio;
   for (const b of (terrain ? terrain.blocks : [])) {
     const bx = W * b.x, bw = W * b.w, bh = H * b.h;
-    if (px > bx - bw / 2 && px < bx + bw / 2) {
-      return gy - bh;
-    }
+    if (px > bx - bw/2 && px < bx + bw/2) return gy - bh;
   }
   return gy;
 }
 
 function terrainHit(sx, sy) {
-  const gy = groundY();
-  if (sy >= gy) return true;
+  if (sy >= groundY()) return true;
   for (const b of terrain.blocks) {
     const bx = W * b.x, bw = W * b.w, bh = H * b.h;
-    if (sx > bx - bw / 2 && sx < bx + bw / 2 && sy > gy - bh) {
-      return true;
-    }
+    if (sx > bx - bw/2 && sx < bx + bw/2 && sy > groundY() - bh) return true;
   }
   return false;
 }
 
-// Draw stick figure
+// === Drawing ===
 function drawStickman(p) {
-  const x = p.x, y = p.y;
-  const s = Math.min(W, H) * 0.04;
-  ctx.strokeStyle = p.color;
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-
-  // Head
-  ctx.beginPath();
-  ctx.arc(x, y - s * 3.5, s * 0.7, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Body
-  ctx.beginPath();
-  ctx.moveTo(x, y - s * 2.8);
-  ctx.lineTo(x, y - s * 0.8);
-  ctx.stroke();
-
-  // Arms (one holding spear)
-  ctx.beginPath();
-  ctx.moveTo(x - s * 0.8, y - s * 2.2);
-  ctx.lineTo(x, y - s * 2);
-  ctx.lineTo(x + s * 0.8, y - s * 2.2);
-  ctx.stroke();
-
-  // Legs
-  ctx.beginPath();
-  ctx.moveTo(x, y - s * 0.8);
-  ctx.lineTo(x - s * 0.6, y);
-  ctx.moveTo(x, y - s * 0.8);
-  ctx.lineTo(x + s * 0.6, y);
-  ctx.stroke();
-
-  // HP bar
-  const barW = s * 3;
-  const barH = 4;
-  const barX = x - barW / 2;
-  const barY = y - s * 5;
-  ctx.fillStyle = '#333';
-  ctx.fillRect(barX, barY, barW, barH);
-  ctx.fillStyle = p.hp > 30 ? p.color : '#f44';
-  ctx.fillRect(barX, barY, barW * (p.hp / p.maxHp), barH);
-
-  // Name
-  ctx.fillStyle = p.color;
-  ctx.font = `bold ${Math.max(10, s * 0.6)}px system-ui`;
-  ctx.textAlign = 'center';
-  ctx.fillText(p.name, x, barY - 4);
+  const x = p.x, y = p.y, s = Math.min(W, H) * 0.04;
+  ctx.strokeStyle = p.color; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y - s*3.5, s*0.7, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-s*2.8); ctx.lineTo(x, y-s*0.8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-s*0.8, y-s*2.2); ctx.lineTo(x, y-s*2); ctx.lineTo(x+s*0.8, y-s*2.2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-s*0.8); ctx.lineTo(x-s*0.6, y); ctx.moveTo(x, y-s*0.8); ctx.lineTo(x+s*0.6, y); ctx.stroke();
+  const barW = s*3, barH = 4, barX = x-barW/2, barY = y-s*5;
+  ctx.fillStyle = '#333'; ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = p.hp > 30 ? p.color : '#f44'; ctx.fillRect(barX, barY, barW*(p.hp/p.maxHp), barH);
+  ctx.fillStyle = p.color; ctx.font = `bold ${Math.max(10, s*0.6)}px system-ui`;
+  ctx.textAlign = 'center'; ctx.fillText(p.name, x, barY-4);
 }
 
-// Draw spear in flight
 function drawSpear(s) {
   if (!s) return;
-  const angle = Math.atan2(s.vy, s.vx);
-  const len = 18;
-  ctx.save();
-  ctx.translate(s.x, s.y);
-  ctx.rotate(angle);
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-len, 0);
-  ctx.lineTo(len, 0);
-  ctx.stroke();
-  // Spear tip
-  ctx.beginPath();
-  ctx.moveTo(len, 0);
-  ctx.lineTo(len - 5, -4);
-  ctx.moveTo(len, 0);
-  ctx.lineTo(len - 5, 4);
-  ctx.stroke();
+  const angle = Math.atan2(s.vy, s.vx), len = 18;
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(angle);
+  ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(len, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(len, 0); ctx.lineTo(len-5, -4); ctx.moveTo(len, 0); ctx.lineTo(len-5, 4); ctx.stroke();
   ctx.restore();
 }
 
-// Draw ground + terrain
 function drawGround() {
   const gy = groundY();
-  ctx.fillStyle = '#1a2e2a';
-  ctx.fillRect(0, gy, W, H - gy);
-
-  // Terrain blocks
+  ctx.fillStyle = '#1a2e2a'; ctx.fillRect(0, gy, W, H-gy);
   for (const b of terrain.blocks) {
-    const bx = W * b.x, bw = W * b.w, bh = H * b.h;
-    ctx.fillStyle = '#243f3a';
-    ctx.fillRect(bx - bw / 2, gy - bh, bw, bh);
-    ctx.strokeStyle = '#2dd4bf22';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bx - bw / 2, gy - bh, bw, bh);
+    const bx = W*b.x, bw = W*b.w, bh = H*b.h;
+    ctx.fillStyle = '#243f3a'; ctx.fillRect(bx-bw/2, gy-bh, bw, bh);
+    ctx.strokeStyle = '#2dd4bf22'; ctx.lineWidth = 1; ctx.strokeRect(bx-bw/2, gy-bh, bw, bh);
   }
-
-  ctx.strokeStyle = '#2dd4bf33';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, gy);
-  ctx.lineTo(W, gy);
-  ctx.stroke();
-
-  // Terrain name
-  ctx.fillStyle = '#2dd4bf44';
-  ctx.font = '11px system-ui';
-  ctx.textAlign = 'right';
-  ctx.fillText(terrain.name, W - 8, gy + 14);
+  ctx.strokeStyle = '#2dd4bf33'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  ctx.fillStyle = '#2dd4bf44'; ctx.font = '11px system-ui'; ctx.textAlign = 'right';
+  ctx.fillText(terrain.name, W-8, gy+14);
 }
 
-// Draw direction arrow
 function drawPreview() {
   if (animating || !gameRunning) return;
-  const p = players[currentPlayer];
-  const angle = parseInt(angleSlider.value);
-  const rad = (angle * Math.PI) / 180;
-  const dir = p.dir;
-  const startX = p.x + dir * 15;
-  const startY = p.y - H * 0.04 * 2.2;
-  const arrowLen = 40;
-  const endX = startX + Math.cos(rad) * arrowLen * dir;
-  const endY = startY - Math.sin(rad) * arrowLen;
-
-  ctx.strokeStyle = 'rgba(45,212,191,0.6)';
-  ctx.lineWidth = 2.5;
+  if (onlineMode && myPlayer !== currentPlayer) return;
+  const p = players[currentPlayer], angle = parseInt(angleSlider.value);
+  const rad = (angle * Math.PI) / 180, dir = p.dir;
+  const startX = p.x + dir*15, startY = p.y - H*0.04*2.2, arrowLen = 40;
+  const endX = startX + Math.cos(rad)*arrowLen*dir, endY = startY - Math.sin(rad)*arrowLen;
+  ctx.strokeStyle = 'rgba(45,212,191,0.6)'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
+  const headLen = 8, headAngle = Math.atan2(startY-endY, startX-endX);
   ctx.beginPath();
-  ctx.moveTo(startX, startY);
-  ctx.lineTo(endX, endY);
-  ctx.stroke();
-
-  // Arrowhead
-  const headLen = 8;
-  const headAngle = Math.atan2(startY - endY, startX - endX);
-  ctx.beginPath();
-  ctx.moveTo(endX, endY);
-  ctx.lineTo(endX + Math.cos(headAngle + 0.4) * headLen, endY + Math.sin(headAngle + 0.4) * headLen);
-  ctx.moveTo(endX, endY);
-  ctx.lineTo(endX + Math.cos(headAngle - 0.4) * headLen, endY + Math.sin(headAngle - 0.4) * headLen);
+  ctx.moveTo(endX, endY); ctx.lineTo(endX+Math.cos(headAngle+0.4)*headLen, endY+Math.sin(headAngle+0.4)*headLen);
+  ctx.moveTo(endX, endY); ctx.lineTo(endX+Math.cos(headAngle-0.4)*headLen, endY+Math.sin(headAngle-0.4)*headLen);
   ctx.stroke();
 }
 
-// Main draw
 function draw() {
   ctx.clearRect(0, 0, W, H);
-  drawGround();
-  players.forEach(drawStickman);
-  drawSpear(spear);
+  drawGround(); players.forEach(drawStickman); drawSpear(spear);
   if (!animating) drawPreview();
 }
 
-// Fire spear
-function fireSpear() {
-  if (animating || !gameRunning) return;
-  animating = true;
-  fireBtn.disabled = true;
-
-  const p = players[currentPlayer];
-  const angle = parseInt(angleSlider.value);
-  const power = powerValue;
-  const rad = (angle * Math.PI) / 180;
-  const dir = p.dir;
-
-  spear = {
-    x: p.x + dir * 15,
-    y: p.y - H * 0.04 * 2.2,
-    vx: Math.cos(rad) * power * 0.15 * dir,
-    vy: -Math.sin(rad) * power * 0.15,
-  };
+// === Spear Logic ===
+function executeThrow(angle, power, callback) {
+  animating = true; fireBtn.disabled = true; stopPowerGauge();
+  const p = players[currentPlayer], rad = (angle*Math.PI)/180, dir = p.dir;
+  spear = { x: p.x+dir*15, y: p.y-H*0.04*2.2, vx: Math.cos(rad)*power*0.15*dir, vy: -Math.sin(rad)*power*0.15 };
 
   function animate() {
-    spear.vx *= 0.998;
-    spear.vy += GRAVITY;
-    spear.x += spear.vx;
-    spear.y += spear.vy;
-
-    // Hit check against opponent
-    const opp = players[1 - currentPlayer];
-    const dx = spear.x - opp.x;
-    const dy = spear.y - (opp.y - H * 0.04 * 2);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const hitRadius = H * 0.04 * 2.5;
-
-    if (dist < hitRadius) {
-      // Hit!
-      const dmg = Math.floor(15 + power * 0.2 + Math.random() * 10);
-      opp.hp = Math.max(0, opp.hp - dmg);
-      spear = null;
-      showDamage(opp.x, opp.y - H * 0.04 * 4, dmg);
-
-      if (opp.hp <= 0) {
-        gameRunning = false;
-        setTimeout(() => showResult(players[currentPlayer]), 800);
-      } else {
-        setTimeout(nextTurn, 1000);
-      }
-      draw();
-      return;
+    spear.vx *= 0.998; spear.vy += GRAVITY; spear.x += spear.vx; spear.y += spear.vy;
+    const opp = players[1-currentPlayer];
+    const dx = spear.x-opp.x, dy = spear.y-(opp.y-H*0.04*2);
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < H*0.04*2.5) {
+      const dmg = Math.floor(15 + power*0.2 + Math.random()*10);
+      opp.hp = Math.max(0, opp.hp-dmg); spear = null;
+      showDamage(opp.x, opp.y-H*0.04*4, dmg);
+      if (opp.hp <= 0) { gameRunning = false; setTimeout(() => showResult(players[currentPlayer]), 800); }
+      else { setTimeout(() => { if (callback) callback(); }, 1000); }
+      draw(); return;
     }
-
-    // Ground, terrain or out of bounds
-    if (terrainHit(spear.x, spear.y) || spear.x < -50 || spear.x > W + 50) {
-      spear = null;
-      showDamage(W / 2, groundY() - 30, 'MISS');
-      setTimeout(nextTurn, 800);
-      draw();
-      return;
+    if (terrainHit(spear.x, spear.y) || spear.x < -50 || spear.x > W+50) {
+      spear = null; showDamage(W/2, groundY()-30, 'MISS');
+      setTimeout(() => { if (callback) callback(); }, 800);
+      draw(); return;
     }
-
-    draw();
-    requestAnimationFrame(animate);
+    draw(); requestAnimationFrame(animate);
   }
   animate();
 }
 
-// Damage popup
-let damagePopups = [];
 function showDamage(x, y, val) {
   const el = document.createElement('div');
   el.textContent = typeof val === 'number' ? `-${val}` : val;
-  el.style.cssText = `
-    position:fixed; left:${(x/W)*100}%; top:${(y/H)*75}%;
-    color:${typeof val === 'number' ? '#f44' : '#ffd700'}; font-size:1.5rem; font-weight:bold;
-    pointer-events:none; z-index:15; text-shadow:0 0 8px rgba(0,0,0,0.8);
-    animation: floatUp 1s ease-out forwards;
-  `;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
+  el.style.cssText = `position:fixed;left:${(x/W)*100}%;top:${(y/H)*75}%;color:${typeof val==='number'?'#f44':'#ffd700'};font-size:1.5rem;font-weight:bold;pointer-events:none;z-index:15;text-shadow:0 0 8px rgba(0,0,0,0.8);animation:floatUp 1s ease-out forwards;`;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
 }
 
-// Next turn
+// === Turn Management ===
 function nextTurn() {
   currentPlayer = 1 - currentPlayer;
-  animating = false;
-  fireBtn.disabled = false;
+  animating = false; fireBtn.disabled = false;
   updateTurnInfo();
-  startPowerGauge();
+  if (!onlineMode || myPlayer === currentPlayer) startPowerGauge();
   draw();
 }
 
 function updateTurnInfo() {
   const p = players[currentPlayer];
-  turnInfo.textContent = `${p.name} のターン`;
-  turnInfo.style.color = p.color;
+  if (onlineMode) {
+    const isMyTurn = myPlayer === currentPlayer;
+    turnInfo.textContent = isMyTurn ? 'あなたのターン' : '相手のターン...';
+    turnInfo.style.color = isMyTurn ? '#2dd4bf' : '#f472b6';
+    fireBtn.disabled = !isMyTurn || animating;
+    if (!isMyTurn) stopPowerGauge();
+  } else {
+    turnInfo.textContent = `${p.name} のターン`;
+    turnInfo.style.color = p.color;
+  }
 }
 
-// Result
 function showResult(winner) {
   stopPowerGauge();
   document.getElementById('controls').classList.add('hidden');
   turnInfo.classList.add('hidden');
   document.getElementById('result').classList.remove('hidden');
-  document.getElementById('winnerText').textContent = `🏆 ${winner.name} の勝ち!`;
-  document.getElementById('winnerText').style.color = winner.color;
+  if (onlineMode) {
+    const won = (winner === players[myPlayer]);
+    document.getElementById('winnerText').textContent = won ? '🏆 あなたの勝ち!' : '😭 負けました...';
+    document.getElementById('winnerText').style.color = won ? '#2dd4bf' : '#f472b6';
+  } else {
+    document.getElementById('winnerText').textContent = `🏆 ${winner.name} の勝ち!`;
+    document.getElementById('winnerText').style.color = winner.color;
+  }
   document.getElementById('winnerSub').textContent = '槍投げバトル 決着!';
 }
 
-// Start
-function startGame() {
-  document.getElementById('ui').classList.add('hidden');
-  document.getElementById('result').classList.add('hidden');
-  document.getElementById('controls').classList.remove('hidden');
-  turnInfo.classList.remove('hidden');
-  initGame();
-  updateTurnInfo();
-  startPowerGauge();
-  draw();
-}
-
-// Event listeners
+// === Power Gauge ===
 const angleSlider = document.getElementById('angleSlider');
 const fireBtn = document.getElementById('fireBtn');
 const turnInfo = document.getElementById('turnInfo');
 const powerBar = document.getElementById('powerBar');
 const powerValEl = document.getElementById('powerVal');
-
-// Auto power gauge
-let powerValue = 10;
-let powerDir = 1;
-let powerTimer = null;
+let powerValue = 10, powerDir = 1, powerTimer = null;
 
 function startPowerGauge() {
-  powerValue = 10;
-  powerDir = 1;
+  powerValue = 10; powerDir = 1;
   if (powerTimer) clearInterval(powerTimer);
   powerTimer = setInterval(() => {
     powerValue += powerDir * 2;
     if (powerValue >= 100) { powerValue = 100; powerDir = -1; }
     if (powerValue <= 10) { powerValue = 10; powerDir = 1; }
-    powerBar.style.width = powerValue + '%';
-    powerValEl.textContent = powerValue;
+    powerBar.style.width = powerValue + '%'; powerValEl.textContent = powerValue;
     draw();
   }, 30);
 }
+function stopPowerGauge() { if (powerTimer) { clearInterval(powerTimer); powerTimer = null; } }
 
-function stopPowerGauge() {
-  if (powerTimer) { clearInterval(powerTimer); powerTimer = null; }
+// === Local Mode ===
+function startLocalGame() {
+  onlineMode = false; myPlayer = -1;
+  hideAllOverlays();
+  document.getElementById('controls').classList.remove('hidden');
+  turnInfo.classList.remove('hidden');
+  initGame(); updateTurnInfo(); startPowerGauge(); draw();
 }
 
-angleSlider.addEventListener('input', () => {
-  document.getElementById('angleVal').textContent = angleSlider.value + '°';
+function localFire() {
+  if (animating || !gameRunning) return;
+  const angle = parseInt(angleSlider.value), power = powerValue;
+  executeThrow(angle, power, nextTurn);
+}
+
+// === Online Mode ===
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function createRoom() {
+  hideAllOverlays();
+  document.getElementById('waitRoom').classList.remove('hidden');
+  roomCode = generateCode();
+  document.getElementById('roomCodeDisplay').textContent = roomCode;
+  document.getElementById('waitText').textContent = '相手を待っています...';
+
+  const t = TERRAINS[Math.floor(Math.random() * TERRAINS.length)];
+  const terrainData = { name: t.name, blocks: t.gen() };
+
+  roomRef = db.ref('rooms/' + roomCode);
+  roomRef.set({
+    terrain: terrainData,
+    p1: true, p2: false,
+    turn: 0, action: null,
+    hp: [100, 100], status: 'waiting'
+  });
+
+  myPlayer = 0;
+
+  roomRef.child('p2').on('value', snap => {
+    if (snap.val() === true) {
+      document.getElementById('waitRoom').classList.add('hidden');
+      startOnlineGame(terrainData);
+    }
+  });
+
+  roomRef.onDisconnect().remove();
+}
+
+function joinRoomUI() {
+  hideAllOverlays();
+  document.getElementById('joinRoom').classList.remove('hidden');
+  document.getElementById('roomCodeInput').value = '';
+  document.getElementById('joinError').textContent = '';
+  document.getElementById('roomCodeInput').focus();
+}
+
+function joinRoom() {
+  const code = document.getElementById('roomCodeInput').value.toUpperCase().trim();
+  if (code.length !== 4) { document.getElementById('joinError').textContent = '4文字の合言葉を入力してください'; return; }
+
+  const ref = db.ref('rooms/' + code);
+  ref.once('value', snap => {
+    const data = snap.val();
+    if (!data) { document.getElementById('joinError').textContent = '部屋が見つかりません'; return; }
+    if (data.p2 === true) { document.getElementById('joinError').textContent = 'この部屋は満員です'; return; }
+
+    roomCode = code; roomRef = ref; myPlayer = 1;
+    ref.child('p2').set(true);
+    document.getElementById('joinRoom').classList.add('hidden');
+    startOnlineGame(data.terrain);
+  });
+}
+
+function startOnlineGame(terrainData) {
+  onlineMode = true;
+  hideAllOverlays();
+  document.getElementById('controls').classList.remove('hidden');
+  turnInfo.classList.remove('hidden');
+  initGame(terrainData);
+  updateTurnInfo();
+  if (myPlayer === 0) startPowerGauge();
   draw();
+  listenForActions();
+}
+
+function listenForActions() {
+  roomRef.child('action').on('value', snap => {
+    const action = snap.val();
+    if (!action || animating) return;
+    if (action.by !== myPlayer && action.turn === currentPlayer) {
+      executeThrow(action.angle, action.power, () => {
+        nextTurn();
+        roomRef.child('action').set(null);
+      });
+    }
+  });
+}
+
+function onlineFire() {
+  if (animating || !gameRunning || myPlayer !== currentPlayer) return;
+  const angle = parseInt(angleSlider.value), power = powerValue;
+  stopPowerGauge();
+
+  roomRef.child('action').set({ by: myPlayer, turn: currentPlayer, angle, power });
+
+  executeThrow(angle, power, () => {
+    nextTurn();
+    roomRef.child('action').set(null);
+  });
+}
+
+function cancelRoom() {
+  if (roomRef) { roomRef.remove(); roomRef = null; }
+  roomCode = null;
+  hideAllOverlays();
+  document.getElementById('ui').classList.remove('hidden');
+}
+
+// === UI Helpers ===
+function hideAllOverlays() {
+  ['ui', 'waitRoom', 'joinRoom', 'result', 'controls'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+  turnInfo.classList.add('hidden');
+}
+
+// === Event Listeners ===
+angleSlider.addEventListener('input', () => {
+  document.getElementById('angleVal').textContent = angleSlider.value + '°'; draw();
 });
 fireBtn.addEventListener('click', () => {
-  stopPowerGauge();
-  fireSpear();
+  if (onlineMode) onlineFire(); else localFire();
 });
-document.getElementById('startBtn').addEventListener('click', startGame);
-document.getElementById('retryBtn').addEventListener('click', startGame);
+document.getElementById('startBtn').addEventListener('click', startLocalGame);
+document.getElementById('createRoomBtn').addEventListener('click', createRoom);
+document.getElementById('joinRoomBtn').addEventListener('click', joinRoomUI);
+document.getElementById('joinConfirmBtn').addEventListener('click', joinRoom);
+document.getElementById('roomCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+document.getElementById('cancelRoomBtn').addEventListener('click', cancelRoom);
+document.getElementById('cancelJoinBtn').addEventListener('click', () => { hideAllOverlays(); document.getElementById('ui').classList.remove('hidden'); });
+document.getElementById('retryBtn').addEventListener('click', () => {
+  if (roomRef) { roomRef.remove(); roomRef = null; }
+  hideAllOverlays(); document.getElementById('ui').classList.remove('hidden');
+});
 
-// Float up animation
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes floatUp {
-    0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-40px); opacity: 0; }
-  }
-`;
-document.head.appendChild(style);
-
-// Initial draw
-initGame();
-draw();
+initGame(); draw();
 </script>
 </body>
 </html>
