@@ -33,6 +33,9 @@ input[type="range"] { width:100px; accent-color:#2dd4bf; }
 #turnInfo.hidden { display:none; }
 #windInfo { position:fixed; top:38px; left:50%; transform:translateX(-50%); font-size:12px; color:#8ba8a3; background:rgba(0,0,0,0.7); padding:4px 14px; border-radius:16px; z-index:5; }
 #windInfo.hidden { display:none; }
+#timerInfo { position:fixed; top:58px; left:50%; transform:translateX(-50%); font-size:13px; font-weight:bold; color:#ffd700; background:rgba(0,0,0,0.7); padding:4px 14px; border-radius:16px; z-index:5; }
+#timerInfo.hidden { display:none; }
+#timerInfo.danger { color:#f44; animation:pulse 0.5s infinite; }
 #result h2 { font-size:2.5rem; color:#2dd4bf; }
 #result p { font-size:1.2rem; color:#8ba8a3; margin-top:0.5rem; }
 .room-code { font-size:2.5rem; font-weight:bold; color:#ffd700; letter-spacing:8px; background:#1a2e2a; padding:12px 28px; border-radius:12px; margin:1rem 0; }
@@ -50,6 +53,7 @@ select:focus { border-color:#2dd4bf; outline:none; }
 
 <div id="turnInfo" class="hidden"></div>
 <div id="windInfo" class="hidden"></div>
+<div id="timerInfo" class="hidden"></div>
 <canvas id="game"></canvas>
 
 <div id="controls" class="hidden">
@@ -181,10 +185,30 @@ function sfxThunder() { playTone(50,0.6,'sawtooth',0.3); setTimeout(()=>playTone
 
 // Idle timer - lightning strike after 20s
 let idleTimer = null;
+let countdownTimer = null;
+let countdownSec = 20;
+const timerEl = document.getElementById('timerInfo');
+
 function resetIdleTimer() {
   clearTimeout(idleTimer);
-  if (!gameRunning || animating) return;
-  idleTimer = setTimeout(strikeWithLightning, 20000);
+  clearInterval(countdownTimer);
+  countdownSec = 20;
+  if (!gameRunning || animating) { timerEl.classList.add('hidden'); return; }
+  timerEl.classList.remove('hidden');
+  timerEl.classList.remove('danger');
+  timerEl.textContent = `⏱ ${countdownSec}`;
+  countdownTimer = setInterval(() => {
+    countdownSec--;
+    timerEl.textContent = `⏱ ${countdownSec}`;
+    if (countdownSec <= 5) timerEl.classList.add('danger');
+    if (countdownSec <= 0) { clearInterval(countdownTimer); strikeWithLightning(); }
+  }, 1000);
+}
+
+function stopIdleTimer() {
+  clearTimeout(idleTimer);
+  clearInterval(countdownTimer);
+  timerEl.classList.add('hidden');
 }
 
 function strikeWithLightning() {
@@ -192,7 +216,7 @@ function strikeWithLightning() {
   const p = players[currentPlayer];
   if (!p.alive) return;
 
-  stopPowerGauge();
+  stopPowerGauge(); stopIdleTimer();
   sfxThunder();
 
   // Flash effect
@@ -245,7 +269,7 @@ function initGame(numPlayers, terrainData) {
   players = positions.map((xr, i) => ({
     x: W*xr, y: getPlayerGroundRaw(xr), hp: 100, maxHp: 100,
     color: PLAYER_COLORS[i], name: PLAYER_NAMES[i], dir: xr < 0.5 ? 1 : -1, alive: true,
-    itemUsed: false, hasBarrier: false
+    usedItems: {}, hasBarrier: false
   }));
   currentPlayer = 0; spear = null; gameRunning = true; animating = false;
   kills = {}; players.forEach((_, i) => kills[i] = 0);
@@ -350,7 +374,7 @@ function draw() {
 // result: { hitPlayer, dmg } from sender in online mode, null for local
 function executeThrow(angle, power, cb, remoteResult, throwItem) {
   animating=true; fireBtn.disabled=true; stopPowerGauge();
-  clearTimeout(idleTimer);
+  stopIdleTimer();
   sfxThrow();
   const dmgMult = throwItem === 'triple' ? 0.75 : 1;
   const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
@@ -521,10 +545,11 @@ function updateTurnInfo() {
 }
 
 function showResult(winner) {
-  stopPowerGauge();
+  stopPowerGauge(); stopIdleTimer();
   document.getElementById('controls').classList.add('hidden');
   turnInfo.classList.add('hidden');
   document.getElementById('windInfo').classList.add('hidden');
+  timerEl.classList.add('hidden');
   document.getElementById('result').classList.remove('hidden');
   if (onlineMode) {
     const won=winner&&winner===players[myPlayer];
@@ -589,10 +614,12 @@ function cpuFire() {
   document.getElementById('angleVal').textContent = angle+'°';
 
   let item = null;
-  if (!p.itemUsed && Math.random() < 0.3) {
-    const items = ['barrier','explosive','triple'];
-    item = items[Math.floor(Math.random()*3)];
-    p.itemUsed = true;
+  if (Math.random() < 0.3) {
+    const available = ['barrier','explosive','triple'].filter(i => !p.usedItems[i]);
+    if (available.length > 0) {
+      item = available[Math.floor(Math.random()*available.length)];
+      p.usedItems[item] = true;
+    }
   }
 
   if (item === 'barrier') {
@@ -632,17 +659,17 @@ function localFire() {
   const item = selectedItem;
   const p = players[currentPlayer];
 
-  if (item && p.itemUsed) { selectedItem=null; updateItemButtons(); }
+  if (item && p.usedItems[item]) { selectedItem=null; updateItemButtons(); item=null; }
 
   if (item === 'barrier') {
-    p.hasBarrier=true; p.itemUsed=true; selectedItem=null;
+    p.hasBarrier=true; p.usedItems.barrier=true; selectedItem=null;
     sfxThrow(); showDamage(p.x,p.y-H*0.035*5,'🛡️ BARRIER');
     updateItemButtons(); draw();
     setTimeout(nextTurn, 800);
     return;
   }
 
-  if (item) { p.itemUsed=true; selectedItem=null; updateItemButtons(); }
+  if (item) { p.usedItems[item]=true; selectedItem=null; updateItemButtons(); }
 
   if (item === 'triple') {
     const angles = [angle-8, angle, angle+8];
@@ -766,18 +793,18 @@ function shareGame() {
 
 function hideAllOverlays() {
   ['ui','cpuSetup','waitRoom','joinRoom','result','controls'].forEach(id=>document.getElementById(id).classList.add('hidden'));
-  turnInfo.classList.add('hidden'); document.getElementById('windInfo').classList.add('hidden');
+  turnInfo.classList.add('hidden'); document.getElementById('windInfo').classList.add('hidden'); timerEl.classList.add('hidden');
 }
 
 // Events
 function updateItemButtons() {
   const p = players[currentPlayer];
-  const used = p ? p.itemUsed : true;
+  const u = p ? p.usedItems : {};
   const isCpu = cpuMode && cpuPlayers.has(currentPlayer);
   const isRemote = onlineMode && myPlayer !== currentPlayer;
-  document.getElementById('itemBarrier').disabled = used || isCpu || isRemote;
-  document.getElementById('itemExplosive').disabled = used || isCpu || isRemote;
-  document.getElementById('itemTriple').disabled = used || isCpu || isRemote;
+  document.getElementById('itemBarrier').disabled = u.barrier || isCpu || isRemote;
+  document.getElementById('itemExplosive').disabled = u.explosive || isCpu || isRemote;
+  document.getElementById('itemTriple').disabled = u.triple || isCpu || isRemote;
   document.getElementById('itemBarrier').classList.toggle('active', selectedItem==='barrier');
   document.getElementById('itemExplosive').classList.toggle('active', selectedItem==='explosive');
   document.getElementById('itemTriple').classList.toggle('active', selectedItem==='triple');
