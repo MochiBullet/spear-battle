@@ -38,6 +38,7 @@ select { padding:10px; background:#1a2e2a; border:2px solid #173832; border-radi
 select:focus { border-color:#2dd4bf; outline:none; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 @keyframes floatUp { 0%{transform:translateY(0);opacity:1;} 100%{transform:translateY(-40px);opacity:0;} }
+@keyframes lightningFlash { 0%{opacity:0.8;} 15%{opacity:0.2;} 30%{opacity:0.7;} 50%{opacity:0.1;} 100%{opacity:0;} }
 </style>
 </head>
 <body>
@@ -163,6 +164,45 @@ function sfxHit() { playTone(100, 0.3, 'square', 0.2); setTimeout(() => playTone
 function sfxKill() { playTone(60, 0.5, 'sawtooth', 0.25); setTimeout(() => playTone(40, 0.4, 'square', 0.2), 150); }
 function sfxMiss() { playTone(300, 0.15, 'sine', 0.08); }
 function sfxWin() { [0,100,200,300].forEach((d,i) => setTimeout(() => playTone(400+i*100, 0.2, 'square', 0.12), d)); }
+function sfxThunder() { playTone(50,0.6,'sawtooth',0.3); setTimeout(()=>playTone(30,0.8,'square',0.25),100); setTimeout(()=>playTone(70,0.4,'sawtooth',0.2),300); }
+
+// Idle timer - lightning strike after 20s
+let idleTimer = null;
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  if (!gameRunning || animating) return;
+  idleTimer = setTimeout(strikeWithLightning, 20000);
+}
+
+function strikeWithLightning() {
+  if (!gameRunning || animating) return;
+  const p = players[currentPlayer];
+  if (!p.alive) return;
+
+  stopPowerGauge();
+  sfxThunder();
+
+  // Flash effect
+  const flash = document.createElement('div');
+  flash.style.cssText = 'position:fixed;inset:0;background:white;z-index:50;pointer-events:none;animation:lightningFlash 0.6s ease-out forwards;';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 600);
+
+  showDamage(p.x, p.y - H*0.035*5, '⚡');
+  showDamage(p.x, p.y - H*0.035*3, 'TIME OUT');
+
+  p.hp = 0;
+  p.alive = false;
+
+  const alive = alivePlayers();
+  if (alive.length <= 1) {
+    gameRunning = false;
+    setTimeout(() => showResult(alive[0] || null), 1000);
+  } else {
+    setTimeout(nextTurn, 1200);
+  }
+  draw();
+}
 
 function groundY() { return H * GROUND_Y_RATIO; }
 
@@ -289,6 +329,7 @@ function draw() {
 // Spear
 function executeThrow(angle, power, cb) {
   animating=true; fireBtn.disabled=true; stopPowerGauge();
+  clearTimeout(idleTimer);
   sfxThrow();
   const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
   spear={x:p.x+dir*12, y:p.y-H*0.035*2.2, vx:Math.cos(rad)*power*0.14*dir, vy:-Math.sin(rad)*power*0.14};
@@ -344,9 +385,13 @@ function nextTurn() {
   animating=false; fireBtn.disabled=false;
   updateTurnInfo();
   if (cpuMode && cpuPlayers.has(currentPlayer)) {
+    clearTimeout(idleTimer);
     setTimeout(cpuFire, 800+Math.random()*600);
   } else if (!onlineMode || myPlayer===currentPlayer) {
     startPowerGauge();
+    resetIdleTimer();
+  } else {
+    resetIdleTimer();
   }
   draw();
 }
@@ -446,7 +491,7 @@ function startLocalGame() {
   document.getElementById('controls').classList.remove('hidden');
   turnInfo.classList.remove('hidden');
   document.getElementById('windInfo').classList.remove('hidden');
-  initGame(n); updateTurnInfo(); startPowerGauge(); draw();
+  initGame(n); updateTurnInfo(); startPowerGauge(); resetIdleTimer(); draw();
 }
 
 function localFire() {
@@ -469,7 +514,7 @@ function startCpuGame() {
   document.getElementById('controls').classList.remove('hidden');
   turnInfo.classList.remove('hidden');
   document.getElementById('windInfo').classList.remove('hidden');
-  initGame(total); updateTurnInfo(); startPowerGauge(); draw();
+  initGame(total); updateTurnInfo(); startPowerGauge(); resetIdleTimer(); draw();
 }
 
 // Online (2-player)
