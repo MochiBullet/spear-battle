@@ -327,43 +327,94 @@ function draw() {
 }
 
 // Spear
-function executeThrow(angle, power, cb) {
+// result: { hitPlayer, dmg } from sender in online mode, null for local
+function executeThrow(angle, power, cb, remoteResult) {
   animating=true; fireBtn.disabled=true; stopPowerGauge();
   clearTimeout(idleTimer);
   sfxThrow();
   const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
   spear={x:p.x+dir*12, y:p.y-H*0.035*2.2, vx:Math.cos(rad)*power*0.14*dir, vy:-Math.sin(rad)*power*0.14};
+  let localHitDecided = false;
+
+  function applyHit(hitIdx, dmg) {
+    const opp=players[hitIdx];
+    opp.hp=Math.max(0,opp.hp-dmg); spear=null;
+    sfxHit();
+    showDamage(opp.x,opp.y-H*0.035*4,dmg);
+    if (opp.hp<=0) { opp.alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
+    const alive=alivePlayers();
+    if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
+    else setTimeout(()=>{if(cb)cb();},1000);
+    draw();
+  }
+
+  function applyMiss() {
+    spear=null; sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
+    setTimeout(()=>{if(cb)cb();},800); draw();
+  }
 
   function animate() {
     spear.vx += wind;
     spear.vx *= 0.998; spear.vy += GRAVITY; spear.x += spear.vx; spear.y += spear.vy;
 
-    let hitPlayer = null;
+    // Use remote result if available (online receiving side)
+    if (remoteResult && !localHitDecided) {
+      // Just animate until spear is near ground/target, then apply remote result
+      const nearGround = spear.y > groundY() - 30;
+      let nearTarget = false;
+      if (remoteResult.hitPlayer >= 0) {
+        const t = players[remoteResult.hitPlayer];
+        const dx=spear.x-t.x, dy=spear.y-(t.y-H*0.035*2);
+        nearTarget = Math.sqrt(dx*dx+dy*dy) < H*0.035*4;
+      }
+      if (nearTarget || nearGround || spear.x<-50 || spear.x>W+50) {
+        localHitDecided = true;
+        if (remoteResult.hitPlayer >= 0) applyHit(remoteResult.hitPlayer, remoteResult.dmg);
+        else applyMiss();
+        return;
+      }
+      draw(); requestAnimationFrame(animate); return;
+    }
+
+    // Local hit detection (local/CPU mode, or online sender)
+    let hitPlayer = -1;
     for (let i=0; i<players.length; i++) {
       if (i===currentPlayer || !players[i].alive) continue;
       const dx=spear.x-players[i].x, dy=spear.y-(players[i].y-H*0.035*2);
       if (Math.sqrt(dx*dx+dy*dy) < H*0.035*2.5) { hitPlayer=i; break; }
     }
 
-    if (hitPlayer !== null) {
-      const opp=players[hitPlayer];
+    if (hitPlayer >= 0) {
       const dmg=Math.floor(15+power*0.2+Math.random()*10);
-      opp.hp=Math.max(0,opp.hp-dmg); spear=null;
-      sfxHit();
-      showDamage(opp.x,opp.y-H*0.035*4,dmg);
-      if (opp.hp<=0) { opp.alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
-      const alive=alivePlayers();
-      if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
-      else setTimeout(()=>{if(cb)cb();},1000);
-      draw(); return;
+      applyHit(hitPlayer, dmg);
+      return;
     }
     if (terrainHit(spear.x,spear.y)||spear.x<-50||spear.x>W+50) {
-      spear=null; sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
-      setTimeout(()=>{if(cb)cb();},800); draw(); return;
+      applyMiss(); return;
     }
     draw(); requestAnimationFrame(animate);
   }
   animate();
+
+}
+
+// Pre-calculate throw result without rendering (for online sync)
+function simulateThrow(angle, power) {
+  const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
+  let sx=p.x+dir*12, sy=p.y-H*0.035*2.2;
+  let svx=Math.cos(rad)*power*0.14*dir, svy=-Math.sin(rad)*power*0.14;
+  for (let f=0; f<600; f++) {
+    svx += wind; svx *= 0.998; svy += GRAVITY; sx += svx; sy += svy;
+    for (let i=0; i<players.length; i++) {
+      if (i===currentPlayer || !players[i].alive) continue;
+      const dx=sx-players[i].x, dy=sy-(players[i].y-H*0.035*2);
+      if (Math.sqrt(dx*dx+dy*dy) < H*0.035*2.5) {
+        return { hitPlayer: i, dmg: Math.floor(15+power*0.2+Math.random()*10) };
+      }
+    }
+    if (terrainHit(sx,sy) || sx<-50 || sx>W+50) return { hitPlayer: -1, dmg: 0 };
+  }
+  return { hitPlayer: -1, dmg: 0 };
 }
 
 function showDamage(x,y,val) {
@@ -573,7 +624,8 @@ function listenForActions() {
     const a=s.val(); if(!a||animating) return;
     if(a.by!==myPlayer&&a.turn===currentPlayer) {
       wind=a.wind||0;
-      executeThrow(a.angle,a.power,()=>{nextTurn();roomRef.child('action').set(null);});
+      const result = { hitPlayer: a.hitPlayer, dmg: a.dmg };
+      executeThrow(a.angle,a.power,()=>{nextTurn();roomRef.child('action').set(null);}, result);
     }
   });
 }
@@ -582,7 +634,8 @@ function onlineFire() {
   if(animating||!gameRunning||myPlayer!==currentPlayer) return;
   const angle=parseInt(angleSlider.value),power=powerValue;
   stopPowerGauge();
-  roomRef.child('action').set({by:myPlayer,turn:currentPlayer,angle,power,wind});
+  const result = simulateThrow(angle, power);
+  roomRef.child('action').set({by:myPlayer,turn:currentPlayer,angle,power,wind,hitPlayer:result.hitPlayer,dmg:result.dmg});
   executeThrow(angle,power,()=>{nextTurn();roomRef.child('action').set(null);});
 }
 
