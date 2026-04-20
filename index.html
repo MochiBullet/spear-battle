@@ -24,6 +24,11 @@ h1 { font-size:2rem; color:#2dd4bf; margin-bottom:1rem; }
 input[type="range"] { width:100px; accent-color:#2dd4bf; }
 .fire-btn { padding:12px 28px; background:#2dd4bf; color:#0a0a0a; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer; }
 .fire-btn:active { background:#5eead4; } .fire-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.item-btn { padding:6px 10px; background:#1a2e2a; border:1px solid #173832; border-radius:8px; color:#e6fffa; font-size:1.1rem; cursor:pointer; transition:all 0.2s; flex:1; }
+.item-btn:hover { border-color:#2dd4bf; }
+.item-btn.active { border-color:#ffd700; background:#2a3f2a; box-shadow:0 0 8px rgba(255,215,0,0.3); }
+.item-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.barrier-icon { position:absolute; font-size:16px; pointer-events:none; }
 #turnInfo { position:fixed; top:10px; left:50%; transform:translateX(-50%); font-size:14px; font-weight:bold; color:#2dd4bf; background:rgba(0,0,0,0.7); padding:6px 16px; border-radius:20px; z-index:5; }
 #turnInfo.hidden { display:none; }
 #windInfo { position:fixed; top:38px; left:50%; transform:translateX(-50%); font-size:12px; color:#8ba8a3; background:rgba(0,0,0,0.7); padding:4px 14px; border-radius:16px; z-index:5; }
@@ -60,7 +65,14 @@ select:focus { border-color:#2dd4bf; outline:none; }
     </div>
     <div class="ctrl-value" id="powerVal" style="margin-top:2px">50</div>
   </div>
-  <button class="fire-btn" id="fireBtn">投げる!</button>
+  <div id="itemBtns" style="display:flex;flex-direction:column;gap:4px">
+    <button class="fire-btn" id="fireBtn">投げる!</button>
+    <div style="display:flex;gap:4px">
+      <button class="item-btn" id="itemBarrier" title="バリア">🛡️</button>
+      <button class="item-btn" id="itemExplosive" title="爆発槍">💥</button>
+      <button class="item-btn" id="itemTriple" title="連射">🔱</button>
+    </div>
+  </div>
 </div>
 
 <!-- Menu -->
@@ -145,6 +157,7 @@ let wind = 0;
 let onlineMode = false, cpuMode = false, myPlayer = -1, roomRef = null, roomCode = null;
 let cpuPlayers = new Set();
 let kills = {};
+let selectedItem = null; // null, 'barrier', 'explosive', 'triple'
 
 // Sound effects
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -231,7 +244,8 @@ function initGame(numPlayers, terrainData) {
 
   players = positions.map((xr, i) => ({
     x: W*xr, y: getPlayerGroundRaw(xr), hp: 100, maxHp: 100,
-    color: PLAYER_COLORS[i], name: PLAYER_NAMES[i], dir: xr < 0.5 ? 1 : -1, alive: true
+    color: PLAYER_COLORS[i], name: PLAYER_NAMES[i], dir: xr < 0.5 ? 1 : -1, alive: true,
+    itemUsed: false, hasBarrier: false
   }));
   currentPlayer = 0; spear = null; gameRunning = true; animating = false;
   kills = {}; players.forEach((_, i) => kills[i] = 0);
@@ -272,6 +286,12 @@ function drawStickman(p) {
   ctx.fillStyle=p.hp>30?p.color:'#f44'; ctx.fillRect(barX,barY,barW*(p.hp/p.maxHp),barH);
   ctx.fillStyle=p.color; ctx.font=`bold ${Math.max(9,s*0.55)}px system-ui`; ctx.textAlign='center';
   ctx.fillText(p.name,x,barY-3);
+  if (p.hasBarrier) {
+    ctx.strokeStyle='rgba(100,200,255,0.5)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(x,y-s*2,s*2.5,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(100,200,255,0.08)';
+    ctx.beginPath(); ctx.arc(x,y-s*2,s*2.5,0,Math.PI*2); ctx.fill();
+  }
 }
 
 function drawSpear(s) {
@@ -328,20 +348,25 @@ function draw() {
 
 // Spear
 // result: { hitPlayer, dmg } from sender in online mode, null for local
-function executeThrow(angle, power, cb, remoteResult) {
+function executeThrow(angle, power, cb, remoteResult, throwItem) {
   animating=true; fireBtn.disabled=true; stopPowerGauge();
   clearTimeout(idleTimer);
   sfxThrow();
+  const dmgMult = throwItem === 'triple' ? 0.75 : 1;
   const p=players[currentPlayer], rad=(angle*Math.PI)/180, dir=p.dir;
   spear={x:p.x+dir*12, y:p.y-H*0.035*2.2, vx:Math.cos(rad)*power*0.14*dir, vy:-Math.sin(rad)*power*0.14};
   let localHitDecided = false;
 
   function applyHit(hitIdx, dmg) {
-    const opp=players[hitIdx];
-    opp.hp=Math.max(0,opp.hp-dmg); spear=null;
-    sfxHit();
-    showDamage(opp.x,opp.y-H*0.035*4,dmg);
-    if (opp.hp<=0) { opp.alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
+    const opp=players[hitIdx]; spear=null;
+    if (opp.hasBarrier) {
+      opp.hasBarrier = false; sfxMiss();
+      showDamage(opp.x,opp.y-H*0.035*4,'🛡️ BLOCKED');
+    } else {
+      opp.hp=Math.max(0,opp.hp-dmg); sfxHit();
+      showDamage(opp.x,opp.y-H*0.035*4,dmg);
+      if (opp.hp<=0) { opp.alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); showDamage(opp.x,opp.y-H*0.035*5,'💀'); }
+    }
     const alive=alivePlayers();
     if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
     else setTimeout(()=>{if(cb)cb();},1000);
@@ -349,8 +374,36 @@ function executeThrow(angle, power, cb, remoteResult) {
   }
 
   function applyMiss() {
-    spear=null; sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
-    setTimeout(()=>{if(cb)cb();},800); draw();
+    const landX = spear ? spear.x : W/2;
+    const landY = spear ? spear.y : groundY();
+    spear=null;
+
+    if (throwItem === 'explosive') {
+      sfxHit(); playTone(40,0.5,'sawtooth',0.3);
+      showDamage(landX, landY-20, '💥 BOOM');
+      const blastRadius = H * 0.2;
+      for (let i=0; i<players.length; i++) {
+        if (i===currentPlayer || !players[i].alive) continue;
+        const dx=landX-players[i].x, dy=landY-(players[i].y-H*0.035*2);
+        if (Math.sqrt(dx*dx+dy*dy) < blastRadius) {
+          const bdmg = Math.floor(15+power*0.2+Math.random()*10);
+          if (players[i].hasBarrier) {
+            players[i].hasBarrier=false; showDamage(players[i].x,players[i].y-H*0.035*4,'🛡️');
+          } else {
+            players[i].hp=Math.max(0,players[i].hp-bdmg);
+            showDamage(players[i].x,players[i].y-H*0.035*4,bdmg);
+            if (players[i].hp<=0) { players[i].alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); }
+          }
+        }
+      }
+      const alive=alivePlayers();
+      if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
+      else setTimeout(()=>{if(cb)cb();},1000);
+      draw();
+    } else {
+      sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
+      setTimeout(()=>{if(cb)cb();},800); draw();
+    }
   }
 
   function animate() {
@@ -385,7 +438,7 @@ function executeThrow(angle, power, cb, remoteResult) {
     }
 
     if (hitPlayer >= 0) {
-      const dmg=Math.floor(15+power*0.2+Math.random()*10);
+      const dmg=Math.floor((15+power*0.2+Math.random()*10)*dmgMult);
       applyHit(hitPlayer, dmg);
       return;
     }
@@ -434,7 +487,9 @@ function nextTurn() {
   }
   currentPlayer = next;
   animating=false; fireBtn.disabled=false;
+  selectedItem=null;
   updateTurnInfo();
+  updateItemButtons();
   if (cpuMode && cpuPlayers.has(currentPlayer)) {
     clearTimeout(idleTimer);
     setTimeout(cpuFire, 800+Math.random()*600);
@@ -527,11 +582,37 @@ function stopPowerGauge(){if(powerTimer){clearInterval(powerTimer);powerTimer=nu
 // CPU
 function cpuFire() {
   if (!gameRunning||!players[currentPlayer].alive) return;
+  const p = players[currentPlayer];
   const angle = 15 + Math.floor(Math.random()*55);
   const power = 20 + Math.floor(Math.random()*70);
   angleSlider.value = angle;
   document.getElementById('angleVal').textContent = angle+'°';
-  executeThrow(angle, power, nextTurn);
+
+  let item = null;
+  if (!p.itemUsed && Math.random() < 0.3) {
+    const items = ['barrier','explosive','triple'];
+    item = items[Math.floor(Math.random()*3)];
+    p.itemUsed = true;
+  }
+
+  if (item === 'barrier') {
+    p.hasBarrier=true;
+    showDamage(p.x,p.y-H*0.035*5,'🛡️ BARRIER');
+    draw(); setTimeout(nextTurn, 800);
+    return;
+  }
+  if (item === 'triple') {
+    const angles = [angle-8, angle, angle+8];
+    let shotsDone = 0;
+    function fireNext() {
+      if (shotsDone >= 3) { nextTurn(); return; }
+      const a = angles[shotsDone]; shotsDone++;
+      executeThrow(a, power, () => { setTimeout(fireNext, 300); }, null, 'triple');
+    }
+    fireNext();
+  } else {
+    executeThrow(angle, power, nextTurn, null, item);
+  }
 }
 
 // Local mode
@@ -547,7 +628,34 @@ function startLocalGame() {
 
 function localFire() {
   if(animating||!gameRunning) return;
-  executeThrow(parseInt(angleSlider.value), powerValue, nextTurn);
+  const angle=parseInt(angleSlider.value), power=powerValue;
+  const item = selectedItem;
+  const p = players[currentPlayer];
+
+  if (item && p.itemUsed) { selectedItem=null; updateItemButtons(); }
+
+  if (item === 'barrier') {
+    p.hasBarrier=true; p.itemUsed=true; selectedItem=null;
+    sfxThrow(); showDamage(p.x,p.y-H*0.035*5,'🛡️ BARRIER');
+    updateItemButtons(); draw();
+    setTimeout(nextTurn, 800);
+    return;
+  }
+
+  if (item) { p.itemUsed=true; selectedItem=null; updateItemButtons(); }
+
+  if (item === 'triple') {
+    const angles = [angle-8, angle, angle+8];
+    let shotsDone = 0;
+    function fireNext() {
+      if (shotsDone >= 3) { nextTurn(); return; }
+      const a = angles[shotsDone]; shotsDone++;
+      executeThrow(a, power, () => { setTimeout(fireNext, 300); }, null, 'triple');
+    }
+    fireNext();
+  } else {
+    executeThrow(angle, power, nextTurn, null, item);
+  }
 }
 
 // CPU mode
@@ -662,6 +770,23 @@ function hideAllOverlays() {
 }
 
 // Events
+function updateItemButtons() {
+  const p = players[currentPlayer];
+  const used = p ? p.itemUsed : true;
+  const isCpu = cpuMode && cpuPlayers.has(currentPlayer);
+  const isRemote = onlineMode && myPlayer !== currentPlayer;
+  document.getElementById('itemBarrier').disabled = used || isCpu || isRemote;
+  document.getElementById('itemExplosive').disabled = used || isCpu || isRemote;
+  document.getElementById('itemTriple').disabled = used || isCpu || isRemote;
+  document.getElementById('itemBarrier').classList.toggle('active', selectedItem==='barrier');
+  document.getElementById('itemExplosive').classList.toggle('active', selectedItem==='explosive');
+  document.getElementById('itemTriple').classList.toggle('active', selectedItem==='triple');
+}
+
+document.getElementById('itemBarrier').addEventListener('click', () => { selectedItem = selectedItem==='barrier'?null:'barrier'; updateItemButtons(); });
+document.getElementById('itemExplosive').addEventListener('click', () => { selectedItem = selectedItem==='explosive'?null:'explosive'; updateItemButtons(); });
+document.getElementById('itemTriple').addEventListener('click', () => { selectedItem = selectedItem==='triple'?null:'triple'; updateItemButtons(); });
+
 angleSlider.addEventListener('input',()=>{document.getElementById('angleVal').textContent=angleSlider.value+'°';draw();});
 fireBtn.addEventListener('click',()=>{if(onlineMode)onlineFire();else localFire();});
 document.getElementById('startBtn').addEventListener('click',startLocalGame);
