@@ -24,10 +24,12 @@ h1 { font-size:2rem; color:#2dd4bf; margin-bottom:1rem; }
 input[type="range"] { width:100px; accent-color:#2dd4bf; }
 .fire-btn { padding:12px 28px; background:#2dd4bf; color:#0a0a0a; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer; }
 .fire-btn:active { background:#5eead4; } .fire-btn:disabled { opacity:0.4; cursor:not-allowed; }
-.item-btn { padding:6px 10px; background:#1a2e2a; border:1px solid #173832; border-radius:8px; color:#e6fffa; font-size:1.1rem; cursor:pointer; transition:all 0.2s; flex:1; }
+.item-btn { padding:6px 10px; background:#1a2e2a; border:1px solid #173832; border-radius:8px; color:#e6fffa; font-size:1.1rem; cursor:pointer; transition:all 0.2s; flex:1; position:relative; }
 .item-btn:hover { border-color:#2dd4bf; }
 .item-btn.active { border-color:#ffd700; background:#2a3f2a; box-shadow:0 0 8px rgba(255,215,0,0.3); }
-.item-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.item-btn:disabled { opacity:0.4; cursor:not-allowed; filter:grayscale(0.6); }
+.item-btn.used { opacity:0.35; filter:grayscale(0.8); }
+.item-btn.used::after { content:"使用済"; position:absolute; top:-6px; right:-2px; font-size:9px; background:#444; color:#aaa; padding:1px 4px; border-radius:3px; pointer-events:none; }
 .barrier-icon { position:absolute; font-size:16px; pointer-events:none; }
 #turnInfo { position:fixed; top:10px; left:50%; transform:translateX(-50%); font-size:14px; font-weight:bold; color:#2dd4bf; background:rgba(0,0,0,0.7); padding:6px 16px; border-radius:20px; z-index:5; }
 #turnInfo.hidden { display:none; }
@@ -46,6 +48,7 @@ select { padding:10px; background:#1a2e2a; border:2px solid #173832; border-radi
 select:focus { border-color:#2dd4bf; outline:none; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 @keyframes floatUp { 0%{transform:translateY(0);opacity:1;} 100%{transform:translateY(-40px);opacity:0;} }
+@keyframes itemPop { 0%{transform:translateX(-50%) scale(0.6);opacity:0;} 15%{transform:translateX(-50%) scale(1.1);opacity:1;} 30%{transform:translateX(-50%) scale(1);opacity:1;} 80%{transform:translateX(-50%) scale(1);opacity:1;} 100%{transform:translateX(-50%) scale(0.95);opacity:0;} }
 @keyframes lightningFlash { 0%{opacity:0.8;} 15%{opacity:0.2;} 30%{opacity:0.7;} 50%{opacity:0.1;} 100%{opacity:0;} }
 </style>
 </head>
@@ -72,9 +75,9 @@ select:focus { border-color:#2dd4bf; outline:none; }
   <div id="itemBtns" style="display:flex;flex-direction:column;gap:4px">
     <button class="fire-btn" id="fireBtn">投げる!</button>
     <div style="display:flex;gap:4px">
-      <button class="item-btn" id="itemBarrier" title="バリア">🛡️</button>
-      <button class="item-btn" id="itemExplosive" title="爆発槍">💥</button>
-      <button class="item-btn" id="itemTriple" title="連射">🔱</button>
+      <button class="item-btn" id="itemBarrier" title="バリア（次の被弾を1回防ぐ／各アイテム1回限り）">🛡️</button>
+      <button class="item-btn" id="itemExplosive" title="爆発槍（着弾点で範囲攻撃／各アイテム1回限り）">💥</button>
+      <button class="item-btn" id="itemTriple" title="連射（3本連続発射・威力0.75倍／各アイテム1回限り）">🔱</button>
     </div>
   </div>
 </div>
@@ -162,6 +165,7 @@ let onlineMode = false, cpuMode = false, myPlayer = -1, roomRef = null, roomCode
 let cpuPlayers = new Set();
 let kills = {};
 let selectedItem = null; // null, 'barrier', 'explosive', 'triple'
+let explosionAnim = null; // {x, y, t0, maxRadius, victims:[{x,y,dmg}]}
 
 // Sound effects
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -368,6 +372,78 @@ function drawPreview() {
 function draw() {
   ctx.clearRect(0,0,W,H); drawGround(); players.forEach(drawStickman); drawSpear(spear);
   if (!animating) drawPreview(); drawWind();
+  drawExplosion();
+}
+
+function drawExplosion() {
+  if (!explosionAnim) return;
+  const elapsed = performance.now() - explosionAnim.t0;
+  const expandDur = 500;
+  const totalDur = 1100;
+  if (elapsed > totalDur) { explosionAnim = null; return; }
+
+  const ring = Math.min(1, elapsed / expandDur);
+  const fade = elapsed < expandDur ? 0 : Math.min(1, (elapsed - expandDur) / (totalDur - expandDur));
+  const alpha = 1 - fade;
+  const r = ring * explosionAnim.maxRadius;
+  const cx = explosionAnim.x, cy = explosionAnim.y;
+
+  ctx.save();
+
+  // 内側のグロー
+  if (ring < 1) {
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(r, 1));
+    grad.addColorStop(0, `rgba(255, 240, 180, ${alpha * 0.85})`);
+    grad.addColorStop(0.4, `rgba(255, 140, 30, ${alpha * 0.55})`);
+    grad.addColorStop(1, `rgba(255, 60, 0, 0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // 拡大ショックウェーブリング
+  ctx.strokeStyle = `rgba(255, 150, 30, ${alpha})`;
+  ctx.lineWidth = 4 + (1-ring) * 6;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+
+  // 中心の閃光
+  if (ring < 0.35) {
+    ctx.fillStyle = `rgba(255, 255, 220, ${alpha})`;
+    ctx.beginPath(); ctx.arc(cx, cy, 14 + ring * 40, 0, Math.PI*2); ctx.fill();
+  }
+
+  // 範囲指示の点線円（最大半径）
+  ctx.strokeStyle = `rgba(255, 200, 60, ${alpha * 0.75})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 6]);
+  ctx.lineDashOffset = -elapsed * 0.06;
+  ctx.beginPath(); ctx.arc(cx, cy, explosionAnim.maxRadius, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 命中マーカー（被弾位置に小さい x マーク）
+  if (explosionAnim.victims) {
+    for (const v of explosionAnim.victims) {
+      ctx.strokeStyle = `rgba(255, 80, 80, ${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(v.x-8, v.y-8); ctx.lineTo(v.x+8, v.y+8);
+      ctx.moveTo(v.x+8, v.y-8); ctx.lineTo(v.x-8, v.y+8);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+let explosionTickRunning = false;
+function tickExplosion() {
+  if (explosionTickRunning) return;
+  explosionTickRunning = true;
+  function loop() {
+    if (!explosionAnim) { explosionTickRunning = false; return; }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
 }
 
 // Spear
@@ -406,23 +482,29 @@ function executeThrow(angle, power, cb, remoteResult, throwItem) {
       sfxHit(); playTone(40,0.5,'sawtooth',0.3);
       showDamage(landX, landY-20, '💥 BOOM');
       const blastRadius = H * 0.2;
+      const victims = [];
       for (let i=0; i<players.length; i++) {
         if (i===currentPlayer || !players[i].alive) continue;
-        const dx=landX-players[i].x, dy=landY-(players[i].y-H*0.035*2);
+        const px = players[i].x, py = players[i].y - H*0.035*2;
+        const dx=landX-px, dy=landY-py;
         if (Math.sqrt(dx*dx+dy*dy) < blastRadius) {
           const bdmg = Math.floor(15+power*0.2+Math.random()*10);
           if (players[i].hasBarrier) {
             players[i].hasBarrier=false; showDamage(players[i].x,players[i].y-H*0.035*4,'🛡️');
+            victims.push({x:px, y:py, dmg:0, blocked:true});
           } else {
             players[i].hp=Math.max(0,players[i].hp-bdmg);
             showDamage(players[i].x,players[i].y-H*0.035*4,bdmg);
             if (players[i].hp<=0) { players[i].alive=false; kills[currentPlayer]=(kills[currentPlayer]||0)+1; sfxKill(); }
+            victims.push({x:px, y:py, dmg:bdmg});
           }
         }
       }
+      explosionAnim = { x: landX, y: landY, t0: performance.now(), maxRadius: blastRadius, victims };
+      tickExplosion();
       const alive=alivePlayers();
-      if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),800); }
-      else setTimeout(()=>{if(cb)cb();},1000);
+      if (alive.length<=1) { gameRunning=false; setTimeout(()=>showResult(alive[0]||players[currentPlayer]),1200); }
+      else setTimeout(()=>{if(cb)cb();},1300);
       draw();
     } else {
       sfxMiss(); showDamage(W/2,groundY()-30,'MISS');
@@ -499,6 +581,13 @@ function showDamage(x,y,val) {
   el.textContent=typeof val==='number'?`-${val}`:val;
   el.style.cssText=`position:fixed;left:${(x/W)*100}%;top:${(y/H)*70}%;color:${typeof val==='number'?'#f44':'#ffd700'};font-size:1.5rem;font-weight:bold;pointer-events:none;z-index:15;text-shadow:0 0 8px rgba(0,0,0,0.8);animation:floatUp 1s ease-out forwards;`;
   document.body.appendChild(el); setTimeout(()=>el.remove(),1000);
+}
+
+function showItemToast(text, color) {
+  const el=document.createElement('div');
+  el.textContent=text;
+  el.style.cssText=`position:fixed;left:50%;top:32%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:${color||'#fff'};font-size:1.4rem;font-weight:bold;padding:14px 28px;border-radius:14px;border:2px solid ${color||'#fff'};box-shadow:0 0 24px ${color||'#fff'}66;pointer-events:none;z-index:20;animation:itemPop 1.4s ease-out forwards;`;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),1400);
 }
 
 // Turns
@@ -656,7 +745,7 @@ function startLocalGame() {
 function localFire() {
   if(animating||!gameRunning) return;
   const angle=parseInt(angleSlider.value), power=powerValue;
-  const item = selectedItem;
+  let item = selectedItem;
   const p = players[currentPlayer];
 
   if (item && p.usedItems[item]) { selectedItem=null; updateItemButtons(); item=null; }
@@ -664,12 +753,19 @@ function localFire() {
   if (item === 'barrier') {
     p.hasBarrier=true; p.usedItems.barrier=true; selectedItem=null;
     sfxThrow(); showDamage(p.x,p.y-H*0.035*5,'🛡️ BARRIER');
+    showItemToast('🛡️ バリア展開！', '#64c8ff');
     updateItemButtons(); draw();
     setTimeout(nextTurn, 800);
     return;
   }
 
-  if (item) { p.usedItems[item]=true; selectedItem=null; updateItemButtons(); }
+  if (item) {
+    p.usedItems[item]=true;
+    selectedItem=null;
+    updateItemButtons();
+    if (item === 'explosive') showItemToast('💥 爆発槍を装填！', '#ff8c1e');
+    if (item === 'triple') showItemToast('🔱 連射モード！', '#ffd700');
+  }
 
   if (item === 'triple') {
     const angles = [angle-8, angle, angle+8];
@@ -802,12 +898,17 @@ function updateItemButtons() {
   const u = p ? p.usedItems : {};
   const isCpu = cpuMode && cpuPlayers.has(currentPlayer);
   const isRemote = onlineMode && myPlayer !== currentPlayer;
-  document.getElementById('itemBarrier').disabled = u.barrier || isCpu || isRemote;
-  document.getElementById('itemExplosive').disabled = u.explosive || isCpu || isRemote;
-  document.getElementById('itemTriple').disabled = u.triple || isCpu || isRemote;
-  document.getElementById('itemBarrier').classList.toggle('active', selectedItem==='barrier');
-  document.getElementById('itemExplosive').classList.toggle('active', selectedItem==='explosive');
-  document.getElementById('itemTriple').classList.toggle('active', selectedItem==='triple');
+  const items = [
+    { id: 'itemBarrier',   key: 'barrier'   },
+    { id: 'itemExplosive', key: 'explosive' },
+    { id: 'itemTriple',    key: 'triple'    },
+  ];
+  for (const it of items) {
+    const el = document.getElementById(it.id);
+    el.disabled = !!u[it.key] || isCpu || isRemote;
+    el.classList.toggle('used', !!u[it.key]);
+    el.classList.toggle('active', selectedItem === it.key && !u[it.key]);
+  }
 }
 
 document.getElementById('itemBarrier').addEventListener('click', () => { selectedItem = selectedItem==='barrier'?null:'barrier'; updateItemButtons(); });
