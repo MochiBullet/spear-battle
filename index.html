@@ -6,7 +6,8 @@
 <title>Spear Battle</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background:#0a0a0a; color:#e6fffa; font-family:system-ui,sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100dvh; overflow:hidden; touch-action:none; }
+html, body { -webkit-text-size-adjust:100%; }
+body { background:#0a0a0a; color:#e6fffa; font-family:system-ui,sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100dvh; overflow:hidden; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 canvas { display:block; width:100%; max-width:800px; background:#0a0a0a; }
 .overlay { position:fixed; top:0;left:0;right:0;bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); z-index:10; }
 .overlay.hidden { display:none; }
@@ -928,6 +929,18 @@ document.getElementById('roomCodeInput').addEventListener('keydown',e=>{if(e.key
 document.getElementById('cancelRoomBtn').addEventListener('click',cancelRoom);
 document.getElementById('cancelJoinBtn').addEventListener('click',()=>{hideAllOverlays();document.getElementById('ui').classList.remove('hidden');});
 document.getElementById('retryBtn').addEventListener('click',()=>{if(roomRef){roomRef.remove();roomRef=null;}hideAllOverlays();document.getElementById('ui').classList.remove('hidden');});
+
+// iOS のピンチズーム/ジェスチャーズーム/ダブルタップズームを完全禁止
+['gesturestart','gesturechange','gestureend'].forEach(ev => {
+  document.addEventListener(ev, e => e.preventDefault(), { passive:false });
+});
+let __lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - __lastTouchEnd < 350) e.preventDefault();
+  __lastTouchEnd = now;
+}, { passive:false });
+document.addEventListener('dblclick', e => e.preventDefault());
 
 initGame(2); draw();
 </script>
